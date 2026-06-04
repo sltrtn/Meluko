@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "1049841099865",
+    "project_id": "meluko-routine",
+    "storage_bucket": "meluko-routine.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1049841099865:android:4380ddf83c31cf438a7d48",
+        "android_client_info": {
+          "package_name": "com.alarm.meluko"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1049841099865-u1oc6k7p3rqksv313hql74tg740kgceb.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.alarm.meluko",
+            "certificate_hash": "ec0e346bf7e191236fce8c4118d7bbe6db5225c1"
+          }
+        },
+        {
+          "client_id": "1049841099865-q6ube9e1obc4b8vslu5dekqlb776k052.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAaEvvlioe9gU4Lh1q9P2HvMUnBQaNcHys"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1049841099865-q6ube9e1obc4b8vslu5dekqlb776k052.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

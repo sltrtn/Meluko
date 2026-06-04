@@ -2,6 +2,23 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- ── Alarm permissions ─────────────────────────────────────────────────
+         WAKE_LOCK         : keep CPU alive when alarm fires in background
+         SCHEDULE_EXACT_ALARM : fire at exact time on API 31-32 (needs user grant)
+         USE_EXACT_ALARM   : fire at exact time on API 33+ (auto-granted)
+         RECEIVE_BOOT_COMPLETED : reschedule alarm after device restart (future)
+         USE_FULL_SCREEN_INTENT : show AlarmActivity over the lock screen
+    ──────────────────────────────────────────────────────────────────────── -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission
+        android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        android:minSdkVersion="31" />
+    <uses-permission
+        android:name="android.permission.USE_EXACT_ALARM"
+        android:minSdkVersion="33" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+
     <application
         android:name=".MelukoApplication"
         android:allowBackup="true"
@@ -12,6 +29,8 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Meluko">
+
+        <!-- Main launcher activity -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -19,10 +38,30 @@
             android:theme="@style/Theme.Meluko">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Alarm activity — shows over the lock screen when alarm fires
+             showWhenLocked + turnScreenOn handled in code (setShowWhenLocked /
+             setTurnScreenOn on API 27+). The manifest attributes are kept here
+             as a fallback and for older API compatibility.
+        -->
+        <activity
+            android:name=".alarm.AlarmActivity"
+            android:exported="false"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.Meluko" />
+
+        <!-- Alarm broadcast receiver — triggered by AlarmManager
+             exported="false": only this app can send broadcasts to it
+             (AlarmManager can still trigger it — it's exempt as a system service)
+        -->
+        <receiver
+            android:name=".alarm.AlarmReceiver"
+            android:exported="false" />
+
     </application>
 
 </manifest>
