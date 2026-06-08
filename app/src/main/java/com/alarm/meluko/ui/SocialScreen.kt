@@ -1,6 +1,7 @@
 package com.alarm.meluko.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -20,6 +21,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.alarm.meluko.ui.theme.DefaultFontFamily
+import com.alarm.meluko.ui.theme.BodyFontFamily
 import com.alarm.meluko.ui.theme.MelukoTheme
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -29,6 +31,7 @@ enum class WakeStatus { Awake, Sleeping, Missed }
 
 data class TribeMember(
     val name:       String,
+    val photoUrl:   String? = null,
     val isYou:      Boolean,
     val streakDays: Int,
     val status:     WakeStatus,
@@ -37,7 +40,7 @@ data class TribeMember(
 
 data class TribeProgress(
     val name:        String,
-    val emoji:       String,
+    val photoUrl:    String?,
     val awakeCount:  Int,
     val totalCount:  Int
 )
@@ -46,25 +49,27 @@ data class TribeProgress(
 //  Sample data — will be wired to Firestore in a later session
 // ─────────────────────────────────────────────────────────────────────────────
 private val sampleMembers = listOf(
-    TribeMember("Aisha",  false, 14, WakeStatus.Awake,    "6:47 AM"),
-    TribeMember("You",    true,  12, WakeStatus.Awake,    "7:28 AM"),
-    TribeMember("Sachin", false,  8, WakeStatus.Awake,    "7:02 AM"),
-    TribeMember("Priya",  false,  5, WakeStatus.Sleeping, null),
-    TribeMember("Joe",    false,  3, WakeStatus.Missed,   null),
-    TribeMember("Riya",   false,  2, WakeStatus.Awake,    "7:15 AM"),
+    TribeMember("Aisha",  null, false, 14, WakeStatus.Awake,    "6:47 AM"),
+    TribeMember("You",    null, true,  12, WakeStatus.Awake,    "7:28 AM"),
+    TribeMember("Sachin", null, false,  8, WakeStatus.Awake,    "7:02 AM"),
+    TribeMember("Priya",  null, false,  5, WakeStatus.Sleeping, null),
+    TribeMember("Joe",    null, false,  3, WakeStatus.Missed,   null),
+    TribeMember("Riya",   null, false,  2, WakeStatus.Awake,    "7:15 AM"),
 )
 
 private val sampleTribes = listOf(
-    TribeProgress("Hostel D4",   "🏠",  6, 8),
-    TribeProgress("MIT CS 4th",  "📚",  5, 12),
-    TribeProgress("Early Birds", "🌅",  3, 5),
+    TribeProgress("Hostel D4",   null,  6, 8),
+    TribeProgress("MIT CS 4th",  null,  5, 12),
+    TribeProgress("Early Birds", null,  3, 5),
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  SocialScreen
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
-fun SocialScreen() {
+fun SocialScreen(
+    onNavigateToTribe: (String) -> Unit = {}
+) {
     val leaderboard    = remember { sampleMembers.sortedByDescending { it.streakDays } }
     val stillSleeping  = remember { sampleMembers.filter { it.status == WakeStatus.Sleeping } }
     val awakeCount     = remember { sampleMembers.count { it.status == WakeStatus.Awake } }
@@ -118,20 +123,28 @@ fun SocialScreen() {
                 total        = total,
                 youRank      = youRank,
                 awakePercent = awakePercent,
-                modifier     = Modifier.padding(horizontal = 20.dp)
+                modifier     = Modifier.padding(horizontal = 15.dp)
             )
 
             Spacer(Modifier.height(20.dp))
 
-            // ── Tribe Stories row ─────────────────────────────────────────────
-            Row(
-                modifier              = Modifier
-                    .padding(horizontal = 20.dp)
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            // ── The Tribes ────────────────────────────────────────────────────
+            SectionHeader(
+                title    = "The Tribes",
+                modifier = Modifier.padding(horizontal = 20.dp)
+            )
+            Spacer(Modifier.height(10.dp))
+            Column(
+                modifier = Modifier.padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 sampleTribes.forEach { tribe ->
-                    TribeStoryChip(tribe = tribe)
+                    TribeStoryChip(
+                        tribe = tribe,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onNavigateToTribe(tribe.name) }
+                    )
                 }
             }
 
@@ -287,7 +300,10 @@ private fun BigPercentage(percent: Float, awake: Int, total: Int) {
 //  Tribe Story Chip
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
-private fun TribeStoryChip(tribe: TribeProgress) {
+private fun TribeStoryChip(
+    tribe: TribeProgress,
+    modifier: Modifier = Modifier
+) {
     val percent = tribe.awakeCount.toFloat() / tribe.totalCount
     val chipColor = when {
         percent >= 0.8f -> MaterialTheme.colorScheme.tertiaryContainer
@@ -301,6 +317,7 @@ private fun TribeStoryChip(tribe: TribeProgress) {
     }
 
     Surface(
+        modifier = modifier,
         shape = RoundedCornerShape(20.dp),
         color = chipColor
     ) {
@@ -309,7 +326,11 @@ private fun TribeStoryChip(tribe: TribeProgress) {
             verticalAlignment     = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(tribe.emoji, fontSize = 18.sp)
+            TribeAvatar(
+                photoUrl = tribe.photoUrl,
+                name     = tribe.name,
+                size     = 32.dp
+            )
             Column {
                 Text(
                     text       = tribe.name,
@@ -322,7 +343,7 @@ private fun TribeStoryChip(tribe: TribeProgress) {
                     text       = "${tribe.awakeCount}/${tribe.totalCount} awake",
                     fontSize   = 10.sp,
                     fontWeight = FontWeight.Medium,
-                    fontFamily = DefaultFontFamily,
+                    fontFamily = BodyFontFamily,
                     color      = textColor.copy(alpha = 0.7f)
                 )
             }
@@ -376,25 +397,11 @@ private fun LeaderboardRow(
             }
 
             // Avatar
-            Box(
-                modifier         = Modifier
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (member.isYou) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.surfaceVariant
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text       = member.name.first().uppercaseChar().toString(),
-                    fontSize   = 15.sp,
-                    fontWeight = FontWeight.Black,
-                    fontFamily = DefaultFontFamily,
-                    color      = if (member.isYou) MaterialTheme.colorScheme.onPrimary
-                                 else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            UserAvatar(
+                photoUrl = member.photoUrl,
+                name     = member.name,
+                size     = 38.dp
+            )
 
             // Name + status
             Column(modifier = Modifier.weight(1f)) {
@@ -458,21 +465,11 @@ private fun NudgeRow(member: TribeMember) {
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 // Avatar
-                Box(
-                    modifier         = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text       = member.name.first().uppercaseChar().toString(),
-                        fontSize   = 14.sp,
-                        fontWeight = FontWeight.Black,
-                        fontFamily = DefaultFontFamily,
-                        color      = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                UserAvatar(
+                    photoUrl = member.photoUrl,
+                    name     = member.name,
+                    size     = 36.dp
+                )
                 Column {
                     Text(
                         text       = member.name,
@@ -484,8 +481,8 @@ private fun NudgeRow(member: TribeMember) {
                     Text(
                         text       = "Still sleeping",
                         fontSize   = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        fontFamily = DefaultFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = BodyFontFamily,
                         color      = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

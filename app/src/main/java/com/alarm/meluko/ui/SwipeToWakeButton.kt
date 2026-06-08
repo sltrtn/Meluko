@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.alarm.meluko.ui.theme.MelukoTheme
 import com.alarm.meluko.ui.theme.DefaultFontFamily
+import com.alarm.meluko.ui.theme.BodyFontFamily
 import kotlinx.coroutines.launch
 
 @Preview(showBackground = true)

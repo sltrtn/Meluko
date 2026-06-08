@@ -13,6 +13,7 @@ import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -44,11 +45,21 @@ private const val HOME_TAB = 1  // centre tab is the default
 //  MainScreen
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
-fun MainScreen() {
-    var selectedTab    by remember { mutableIntStateOf(HOME_TAB) }
-    var previousTab    by remember { mutableIntStateOf(HOME_TAB) }
+fun MainScreen(
+    onNavigateToTribe: (String) -> Unit = {}
+) {
+    // rememberSaveable: survives NavController back-stack pops and config changes
+    // If we used remember here, popping from TribeDetailScreen resets to HOME_TAB
+    var selectedTab by rememberSaveable { mutableIntStateOf(HOME_TAB) }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    // Background on the Box prevents the window white showing through
+    // during the cross-slide animation between panes
+    val bgColor = MaterialTheme.colorScheme.background
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(bgColor)
+    ) {
 
         // ── Tab content with directional slide ────────────────────────────────
         AnimatedContent(
@@ -77,7 +88,7 @@ fun MainScreen() {
             label    = "tabSlide"
         ) { tab ->
             when (tab) {
-                0 -> SocialScreen()
+                0 -> SocialScreen(onNavigateToTribe = onNavigateToTribe)
                 1 -> HomeScreen()
                 2 -> AccountScreen()
                 else -> HomeScreen()
@@ -87,10 +98,7 @@ fun MainScreen() {
         // ── Glass navigation bar ──────────────────────────────────────────────
         GlassNavigationBar(
             selectedTab   = selectedTab,
-            onTabSelected = { newTab ->
-                previousTab = selectedTab
-                selectedTab = newTab
-            },
+            onTabSelected = { selectedTab = it },
             modifier = Modifier.align(Alignment.BottomCenter)
         )
     }

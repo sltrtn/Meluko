@@ -1,10 +1,15 @@
 package com.alarm.meluko.ui.theme
 
+import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 
 // ── Seed: #FF8C00 Sunrise Amber ───────────────────────────────────────────────
 // One seed color drives every role in both schemes.
@@ -58,13 +63,13 @@ private val MelukoDarkColors = darkColorScheme(
     onError                = md_dark_onError,
     errorContainer         = md_dark_errorContainer,
     onErrorContainer       = md_dark_onErrorContainer,
-    background             = md_dark_background,
+    background             = Color.Black, // TRUE BLACK
     onBackground           = md_dark_onBackground,
-    surface                = md_dark_surface,
+    surface                = Color.Black, // TRUE BLACK
     onSurface              = md_dark_onSurface,
-    surfaceVariant         = md_dark_surfaceVariant,
+    surfaceVariant         = Color(0xFF121212), // Very dark for cards
     onSurfaceVariant       = md_dark_onSurfaceVariant,
-    surfaceContainerHigh   = md_dark_surfaceContainerHigh,
+    surfaceContainerHigh   = Color(0xFF1E1E1E), // Slightly lighter for contrast
     outline                = md_dark_outline,
     outlineVariant         = md_dark_outlineVariant,
     inverseSurface         = md_dark_inverseSurface,
@@ -74,11 +79,36 @@ private val MelukoDarkColors = darkColorScheme(
 
 @Composable
 fun MelukoTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = isSystemInDarkTheme(), // Follow system theme setting
+    dynamicColor: Boolean = true, // Use wallpaper colors
     content: @Composable () -> Unit
 ) {
+    val colorScheme = when {
+        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+            val context = LocalContext.current
+            val dynamicScheme = if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            
+            // If we are in dark mode, inject true black backgrounds but keep wallpaper accent colors
+            if (darkTheme) {
+                dynamicScheme.copy(
+                    background = Color.Black,
+                    surface = Color.Black,
+                    surfaceContainer = Color.Black,
+                    surfaceContainerLow = Color.Black,
+                    surfaceContainerLowest = Color.Black,
+                    surfaceVariant = Color(0xFF121212),
+                    surfaceContainerHigh = Color(0xFF1E1E1E)
+                )
+            } else {
+                dynamicScheme
+            }
+        }
+        darkTheme -> MelukoDarkColors
+        else -> MelukoLightColors
+    }
+
     MaterialTheme(
-        colorScheme = if (darkTheme) MelukoDarkColors else MelukoLightColors,
+        colorScheme = colorScheme,
         typography  = Typography,
         content     = content
     )

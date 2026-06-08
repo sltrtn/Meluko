@@ -9,16 +9,34 @@ import androidx.compose.ui.unit.sp
 import com.alarm.meluko.R
 
 /**
- * Nunito — bundled directly in res/font/ for reliability (no GMS dependency,
- * works offline, zero runtime download latency).
- *
- * Nunito's rounded letterforms are a perfect match for M3 Expressive's
- * rounded shape vocabulary (cornerRadius 24–28dp on cards, 50% on chips).
+ * Display/Title Font: Clash Display
+ * Clash Display is incredibly expressive with bold contrast. Perfect for sexy, premium titles on true black backgrounds.
  */
 val DefaultFontFamily = FontFamily(
-    Font(R.font.sora_bold,      FontWeight.Bold),
-    Font(R.font.inter_bold, FontWeight.ExtraBold),
-    Font(R.font.inter_bold,     FontWeight.Black),
+    Font(R.font.clash_display_extralight, FontWeight.ExtraLight),
+    Font(R.font.clash_display_light,      FontWeight.Light),
+    Font(R.font.clash_display_regular,    FontWeight.Normal),
+    Font(R.font.clash_display_medium,     FontWeight.Medium),
+    Font(R.font.clash_display_semibold,   FontWeight.SemiBold),
+    Font(R.font.clash_display_bold,       FontWeight.Bold),
+    Font(R.font.clash_display_bold,       FontWeight.ExtraBold),
+    Font(R.font.clash_display_bold,       FontWeight.Black),
+)
+
+/**
+ * Body/Text Font: Clash Display (All-in on Brand)
+ * The user requested to shift completely to Clash Display. 
+ * We map out the weights so that captions aren't overly bold and remain legible.
+ */
+val BodyFontFamily = FontFamily(
+    Font(R.font.clash_display_extralight, FontWeight.ExtraLight),
+    Font(R.font.clash_display_light,      FontWeight.Light),
+    Font(R.font.clash_display_regular,    FontWeight.Normal),
+    Font(R.font.clash_display_medium,     FontWeight.Medium),
+    Font(R.font.clash_display_semibold,   FontWeight.SemiBold),
+    Font(R.font.clash_display_bold,       FontWeight.Bold),
+    Font(R.font.clash_display_bold,       FontWeight.ExtraBold),
+    Font(R.font.clash_display_bold,       FontWeight.Black),
 )
 
 val Typography = Typography(
@@ -86,42 +104,42 @@ val Typography = Typography(
         letterSpacing = 0.1.sp
     ),
     bodyLarge = TextStyle(
-        fontFamily    = DefaultFontFamily,
+        fontFamily    = BodyFontFamily,
         fontWeight    = FontWeight.ExtraBold,
         fontSize      = 16.sp,
         lineHeight    = 24.sp,
         letterSpacing = 0.5.sp
     ),
     bodyMedium = TextStyle(
-        fontFamily    = DefaultFontFamily,
+        fontFamily    = BodyFontFamily,
         fontWeight    = FontWeight.Bold,
         fontSize      = 14.sp,
         lineHeight    = 20.sp,
         letterSpacing = 0.25.sp
     ),
     bodySmall = TextStyle(
-        fontFamily    = DefaultFontFamily,
+        fontFamily    = BodyFontFamily,
         fontWeight    = FontWeight.Bold,
         fontSize      = 12.sp,
         lineHeight    = 16.sp,
         letterSpacing = 0.4.sp
     ),
     labelLarge = TextStyle(
-        fontFamily    = DefaultFontFamily,
+        fontFamily    = BodyFontFamily,
         fontWeight    = FontWeight.ExtraBold,
         fontSize      = 14.sp,
         lineHeight    = 20.sp,
         letterSpacing = 0.1.sp
     ),
     labelMedium = TextStyle(
-        fontFamily    = DefaultFontFamily,
+        fontFamily    = BodyFontFamily,
         fontWeight    = FontWeight.Bold,
         fontSize      = 12.sp,
         lineHeight    = 16.sp,
         letterSpacing = 0.5.sp
     ),
     labelSmall = TextStyle(
-        fontFamily    = DefaultFontFamily,
+        fontFamily    = BodyFontFamily,
         fontWeight    = FontWeight.Bold,
         fontSize      = 11.sp,
         lineHeight    = 16.sp,

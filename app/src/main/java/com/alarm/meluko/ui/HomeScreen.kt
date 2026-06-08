@@ -15,10 +15,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.border
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.alarm.meluko.ui.theme.DefaultFontFamily
+import com.alarm.meluko.ui.theme.BodyFontFamily
 import com.alarm.meluko.ui.theme.MelukoTheme
 import kotlinx.coroutines.delay
 import java.util.*
@@ -28,7 +36,7 @@ import java.util.*
 // ─────────────────────────────────────────────────────────────────────────────
 data class TribeInfo(
     val name: String,
-    val emoji: String,
+    val photoUrl: String?,
     val memberCount: Int
 )
 
@@ -42,9 +50,9 @@ fun HomeScreen(homeViewModel: HomeViewModel = hiltViewModel()) {
 
     // Sample tribes — replace with Firestore flow in the future
     val activeTribes = listOf(
-        TribeInfo("Hostel D4",   "🏠", 8),
-        TribeInfo("MIT CS 4th",  "📚", 12),
-        TribeInfo("Early Birds", "🌅", 5),
+        TribeInfo("Hostel D4",   null, 8),
+        TribeInfo("MIT CS 4th",  null, 12),
+        TribeInfo("Early Birds", null, 5),
     )
 
     HomeScreenContent(
@@ -123,6 +131,11 @@ fun HomeScreenContent(
 
             // ── Stats ─────────────────────────────────────────────────────────
             StatsRow(modifier = Modifier.padding(horizontal = 20.dp))
+
+            Spacer(Modifier.height(20.dp))
+
+            // ── Consistency Graph ──────────────────────────────────────────────
+            WeeklyConsistencyGraph(modifier = Modifier.padding(horizontal = 20.dp))
 
             // Debug
             Spacer(Modifier.height(12.dp))
@@ -274,7 +287,11 @@ private fun TribeChip(tribe: TribeInfo) {
             verticalAlignment     = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(tribe.emoji, fontSize = 20.sp)
+            TribeAvatar(
+                photoUrl = tribe.photoUrl,
+                name     = tribe.name,
+                size     = 40.dp
+            )
             Column {
                 Text(
                     text       = tribe.name,
@@ -287,7 +304,7 @@ private fun TribeChip(tribe: TribeInfo) {
                     text       = "${tribe.memberCount} members",
                     fontSize   = 10.sp,
                     fontWeight = FontWeight.Medium,
-                    fontFamily = DefaultFontFamily,
+                    fontFamily = BodyFontFamily,
                     color      = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -345,7 +362,7 @@ private fun StatCard(
                     text       = label,
                     fontSize   = 10.sp,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = DefaultFontFamily,
+                    fontFamily = BodyFontFamily,
                     color      = contentColor.copy(alpha = 0.65f),
                     letterSpacing = 0.5.sp
                 )
@@ -383,6 +400,118 @@ fun computeCountdown(timeString: String): String {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  Consistency Graph
+// ─────────────────────────────────────────────────────────────────────────────
+enum class DayState { SUCCESS, FAIL, FUTURE }
+data class DailyRecord(val label: String, val state: DayState)
+
+@Composable
+fun WeeklyConsistencyGraph(modifier: Modifier = Modifier) {
+    val mockWeek = listOf(
+        DailyRecord("M", DayState.SUCCESS),
+        DailyRecord("T", DayState.SUCCESS),
+        DailyRecord("W", DayState.FAIL),
+        DailyRecord("T", DayState.SUCCESS),
+        DailyRecord("F", DayState.SUCCESS),
+        DailyRecord("S", DayState.FUTURE),
+        DailyRecord("S", DayState.FUTURE),
+    )
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = "Consistency",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = DefaultFontFamily,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                letterSpacing = 0.5.sp
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                mockWeek.forEach { day ->
+                    DayCircle(day)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DayCircle(day: DailyRecord) {
+    val (bgColor, contentColor, borderColor) = when (day.state) {
+        DayState.SUCCESS -> Triple(
+            MaterialTheme.colorScheme.primaryContainer,
+            MaterialTheme.colorScheme.primary,
+            Color.Transparent
+        )
+        DayState.FAIL -> Triple(
+            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f),
+            MaterialTheme.colorScheme.error,
+            MaterialTheme.colorScheme.error.copy(alpha = 0.4f)
+        )
+        DayState.FUTURE -> Triple(
+            Color.Transparent,
+            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+        )
+    }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(bgColor)
+                .border(
+                    width = if (borderColor != Color.Transparent) 1.5.dp else 0.dp,
+                    color = borderColor,
+                    shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (day.state == DayState.SUCCESS) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(18.dp)
+                )
+            } else if (day.state == DayState.FAIL) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+        Text(
+            text = day.label,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = BodyFontFamily,
+            color = contentColor
+        )
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  Previews
 // ─────────────────────────────────────────────────────────────────────────────
 @Preview(showBackground = true, showSystemUi = true)
@@ -392,9 +521,9 @@ private fun HomePreview() {
         HomeScreenContent(
             nextAlarmTime = "07:30",
             activeTribes  = listOf(
-                TribeInfo("Hostel D4",   "🏠", 8),
-                TribeInfo("MIT CS 4th",  "📚", 12),
-                TribeInfo("Early Birds", "🌅", 5),
+                TribeInfo("Hostel D4",   null, 8),
+                TribeInfo("MIT CS 4th",  null, 12),
+                TribeInfo("Early Birds", null, 5),
             )
         )
     }
