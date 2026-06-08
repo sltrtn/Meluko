@@ -31,6 +31,10 @@ import com.alarm.meluko.ui.TribeDetailScreen
 object Routes {
     const val SPLASH = "splash"
     const val LOGIN = "login"
+    const val ONBOARDING = "onboarding"
+    const val CREATE_PROFILE = "create_profile"
+    const val JOIN_TRIBE = "join_tribe"
+    const val WELCOME_BACK = "welcome_back"
     const val HOME  = "home"   // points to MainScreen (3-pane shell)
     const val TRIBE_DETAIL = "tribe_detail/{tribeId}"
     fun createTribeDetailRoute(tribeId: String) = "tribe_detail/$tribeId"
@@ -68,10 +72,16 @@ fun AppNavGraph() {
 
         when (authState) {
             is AuthState.Success -> {
-                if (navController.currentDestination?.route != Routes.HOME) {
-                    navController.navigate(Routes.HOME) {
-                        // popUpTo(0) effectively clears the ENTIRE back stack,
-                        // so the user cannot hit the system Back button to return to Splash or Login.
+                val successState = authState as AuthState.Success
+                val dest = if (successState.isNewUser) Routes.ONBOARDING else Routes.WELCOME_BACK
+                val currentRoute = navController.currentDestination?.route
+                val protectedRoutes = setOf(
+                    Routes.HOME,
+                    Routes.CREATE_PROFILE,
+                    Routes.JOIN_TRIBE
+                )
+                if (currentRoute != dest && currentRoute !in protectedRoutes) {
+                    navController.navigate(dest) {
                         popUpTo(0) { inclusive = true }
                     }
                 }
@@ -88,14 +98,14 @@ fun AppNavGraph() {
     }
 
     // ── NavHost — default transitions apply to all routes unless overridden ──
-    // Default: simple fade so Login→Home doesn't hard-cut
+    // Default: Fast fade + subtle slide for a blazing fast, premium feel
     NavHost(
         navController    = navController,
         startDestination = Routes.SPLASH,
-        enterTransition  = { fadeIn(tween(200)) },
-        exitTransition   = { fadeOut(tween(150)) },
-        popEnterTransition  = { fadeIn(tween(200)) },
-        popExitTransition   = { fadeOut(tween(150)) },
+        enterTransition  = { fadeIn(animationSpec = tween(150, easing = FastOutSlowInEasing)) + slideInHorizontally(initialOffsetX = { 100 }, animationSpec = tween(150, easing = FastOutSlowInEasing)) },
+        exitTransition   = { fadeOut(animationSpec = tween(100, easing = FastOutLinearInEasing)) + slideOutHorizontally(targetOffsetX = { -100 }, animationSpec = tween(100, easing = FastOutLinearInEasing)) },
+        popEnterTransition  = { fadeIn(animationSpec = tween(150, easing = FastOutSlowInEasing)) + slideInHorizontally(initialOffsetX = { -100 }, animationSpec = tween(150, easing = FastOutSlowInEasing)) },
+        popExitTransition   = { fadeOut(animationSpec = tween(100, easing = FastOutLinearInEasing)) + slideOutHorizontally(targetOffsetX = { 100 }, animationSpec = tween(100, easing = FastOutLinearInEasing)) },
     ) {
         composable(Routes.SPLASH) {
             com.alarm.meluko.ui.SplashScreen(
@@ -106,8 +116,87 @@ fun AppNavGraph() {
         composable(Routes.LOGIN) {
             LoginScreen(authViewModel = authViewModel)
         }
+        
+        composable(Routes.ONBOARDING) {
+            com.alarm.meluko.ui.OnboardingScreen(
+                onFinish = {
+                    navController.navigate(Routes.CREATE_PROFILE) {
+                        popUpTo(Routes.ONBOARDING) { inclusive = true }
+                    }
+                }
+            )
+        }
 
-        composable(Routes.HOME) {
+        composable(Routes.CREATE_PROFILE) {
+            com.alarm.meluko.ui.CreateProfileScreen(
+                onFinish = {
+                    navController.navigate(Routes.JOIN_TRIBE) {
+                        popUpTo(Routes.CREATE_PROFILE) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(Routes.JOIN_TRIBE) {
+            com.alarm.meluko.ui.JoinOrCreateTribeScreen(
+                onFinish = {
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // ── WELCOME_BACK — pure fade, no slide, for a soft cinematic feel ──
+        composable(
+            route = Routes.WELCOME_BACK,
+            // Fade in when landing on WELCOME_BACK from any direction
+            enterTransition = {
+                fadeIn(animationSpec = tween(400, easing = FastOutSlowInEasing))
+            },
+            // Fade out when leaving WELCOME_BACK (toward HOME or anywhere)
+            exitTransition = {
+                fadeOut(animationSpec = tween(400, easing = FastOutSlowInEasing))
+            },
+            popEnterTransition = {
+                fadeIn(animationSpec = tween(400, easing = FastOutSlowInEasing))
+            },
+            popExitTransition = {
+                fadeOut(animationSpec = tween(400, easing = FastOutSlowInEasing))
+            }
+        ) {
+            val name = (authState as? AuthState.Success)?.displayName
+            com.alarm.meluko.ui.WelcomeBackScreen(
+                displayName = name,
+                onFinish = {
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // ── HOME — fade-in when coming from WELCOME_BACK, default slide otherwise ──
+        composable(
+            route = Routes.HOME,
+            // Soft fade when entering HOME (matches WELCOME_BACK exit fade)
+            enterTransition = {
+                fadeIn(animationSpec = tween(400, easing = FastOutSlowInEasing))
+            },
+            // Default slide-out when navigating forward from HOME (e.g. into TribeDetail)
+            exitTransition = {
+                fadeOut(animationSpec = tween(100, easing = FastOutSlowInEasing)) +
+                slideOutHorizontally(targetOffsetX = { -100 }, animationSpec = tween(150, easing = FastOutSlowInEasing))
+            },
+            popEnterTransition = {
+                fadeIn(animationSpec = tween(150, easing = FastOutSlowInEasing)) +
+                slideInHorizontally(initialOffsetX = { -100 }, animationSpec = tween(150, easing = FastOutSlowInEasing))
+            },
+            popExitTransition = {
+                fadeOut(animationSpec = tween(100, easing = FastOutSlowInEasing)) +
+                slideOutHorizontally(targetOffsetX = { 100 }, animationSpec = tween(100, easing = FastOutSlowInEasing))
+            }
+        ) {
             MainScreen(
                 onNavigateToTribe = { tribeId ->
                     navController.navigate(Routes.createTribeDetailRoute(tribeId))

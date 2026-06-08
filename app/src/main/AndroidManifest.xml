@@ -10,6 +10,7 @@
          USE_FULL_SCREEN_INTENT : show AlarmActivity over the lock screen
     ──────────────────────────────────────────────────────────────────────── -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission
         android:name="android.permission.SCHEDULE_EXACT_ALARM"
         android:minSdkVersion="31" />
@@ -18,6 +19,7 @@
         android:minSdkVersion="33" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".MelukoApplication"

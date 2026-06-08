@@ -24,6 +24,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.border
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import com.alarm.meluko.alarm.AlarmScheduler
+import android.os.Build
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.LaunchedEffect
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.alarm.meluko.ui.theme.DefaultFontFamily
 import com.alarm.meluko.ui.theme.BodyFontFamily
@@ -44,21 +51,39 @@ data class TribeInfo(
 //  Entry — ViewModel hoist
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
-fun HomeScreen(homeViewModel: HomeViewModel = hiltViewModel()) {
+fun HomeScreen(
+    onTribeClick: (String) -> Unit,
+    homeViewModel: HomeViewModel = hiltViewModel(),
+    socialViewModel: SocialViewModel = hiltViewModel()
+) {
+    val nextAlarmTime by homeViewModel.nextAlarmTime.collectAsState()
     val isAlarmRinging by homeViewModel.isAlarmRinging.collectAsState()
-    val nextAlarmTime  by homeViewModel.nextAlarmTime.collectAsState()
+    val tribesProgress by socialViewModel.tribes.collectAsState()
+    
+    val activeTribes = tribesProgress.map { 
+        TribeInfo(it.name, it.photoUrl, it.totalCount) 
+    }
 
-    // Sample tribes — replace with Firestore flow in the future
-    val activeTribes = listOf(
-        TribeInfo("Hostel D4",   null, 8),
-        TribeInfo("MIT CS 4th",  null, 12),
-        TribeInfo("Early Birds", null, 5),
-    )
+    var showProposeSheet by remember { mutableStateOf(false) }
+
+    if (showProposeSheet) {
+        ProposeAlarmBottomSheet(
+            onDismiss = { showProposeSheet = false },
+            onPropose = { time ->
+                showProposeSheet = false
+                // Ideally we'd call a ViewModel method here, but for UI purposes we close it.
+            }
+        )
+    }
 
     HomeScreenContent(
         nextAlarmTime = nextAlarmTime,
         activeTribes  = activeTribes,
-        onReset       = { homeViewModel.resetAlarm() }
+        isAlarmRinging = isAlarmRinging,
+        onDismissAlarm = { homeViewModel.dismissAlarm() },
+        onReset        = { homeViewModel.resetAlarm() },
+        onTribeClick   = onTribeClick,
+        onProposeClick = { showProposeSheet = true }
     )
 }
 
@@ -67,9 +92,13 @@ fun HomeScreen(homeViewModel: HomeViewModel = hiltViewModel()) {
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 fun HomeScreenContent(
-    nextAlarmTime: String,
-    activeTribes:  List<TribeInfo>,
-    onReset:       () -> Unit = {}
+    nextAlarmTime:  String,
+    activeTribes:   List<TribeInfo>,
+    isAlarmRinging: Boolean,
+    onDismissAlarm: () -> Unit,
+    onReset:        () -> Unit,
+    onTribeClick:   (String) -> Unit,
+    onProposeClick: () -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -84,9 +113,26 @@ fun HomeScreenContent(
 
             // ── Top Bar ───────────────────────────────────────────────────────
             val today = remember {
-                java.text.SimpleDateFormat("EEEE, d MMMM", java.util.Locale.getDefault())
+                java.text.SimpleDateFormat("EEEE, MMMM d", java.util.Locale.getDefault())
                     .format(java.util.Date())
             }
+
+            // Request notification permission for Android 13+ (API 33+)
+            val permissionLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.RequestPermission(),
+                onResult = { isGranted ->
+                    if (!isGranted) {
+                        // Should probably show a rationale, but we'll keep it simple for now
+                    }
+                }
+            )
+
+            LaunchedEffect(Unit) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+
             Column(
                 modifier            = Modifier
                     .fillMaxWidth()
@@ -115,15 +161,30 @@ fun HomeScreenContent(
 
             // ── Hero alarm card ───────────────────────────────────────────────
             AlarmHeroCard(
-                nextAlarmTime = nextAlarmTime,
-                modifier      = Modifier.padding(horizontal = 20.dp)
+                nextAlarmTime  = nextAlarmTime,
+                onProposeClick = onProposeClick,
+                modifier       = Modifier.padding(horizontal = 20.dp)
             )
+            
+            Spacer(Modifier.height(10.dp))
+            
+            val context = LocalContext.current
+            Button(
+                onClick = {
+                    AlarmScheduler(context).scheduleIn(5)
+                },
+                modifier = Modifier.padding(horizontal = 20.dp).fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
+            ) {
+                Text("TEST ALARM (Rings in 5s)", fontWeight = FontWeight.Bold)
+            }
 
             Spacer(Modifier.height(20.dp))
 
             // ── Active tribes ─────────────────────────────────────────────────
             ActiveTribesSection(
                 tribes   = activeTribes,
+                onTribeClick = onTribeClick,
                 modifier = Modifier.padding(horizontal = 20.dp)
             )
 
@@ -162,6 +223,7 @@ fun HomeScreenContent(
 @Composable
 fun AlarmHeroCard(
     nextAlarmTime: String,
+    onProposeClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     // Live countdown — updates every minute
@@ -172,13 +234,12 @@ fun AlarmHeroCard(
         }
     }
 
-    val parts = nextAlarmTime.split(":").let {
-        Pair(it.getOrElse(0) { "07" }, it.getOrElse(1) { "30" })
-    }
+    val timePart = nextAlarmTime.replace(" AM", "").replace(" PM", "").trim()
+    val amPmPart = if (nextAlarmTime.contains("PM", ignoreCase = true)) "PM" else "AM"
 
     Card(
         modifier  = modifier.fillMaxWidth(),
-        shape     = RoundedCornerShape(36.dp),
+        shape     = RoundedCornerShape(24.dp),
         colors    = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer
         ),
@@ -205,7 +266,7 @@ fun AlarmHeroCard(
             // Big time + AM on same row
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
-                    text       = nextAlarmTime,
+                    text       = timePart,
                     fontSize   = 72.sp,
                     fontWeight = FontWeight.Black,
                     fontFamily = DefaultFontFamily,
@@ -214,7 +275,7 @@ fun AlarmHeroCard(
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text       = "AM",
+                    text       = amPmPart,
                     fontSize   = 22.sp,
                     fontWeight = FontWeight.Black,
                     fontFamily = DefaultFontFamily,
@@ -225,19 +286,40 @@ fun AlarmHeroCard(
 
             Spacer(Modifier.height(12.dp))
 
-            // Countdown chip
-            Surface(
-                shape = RoundedCornerShape(50),
-                color = MaterialTheme.colorScheme.primary
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text       = countdown,
-                    fontSize   = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = DefaultFontFamily,
-                    color      = MaterialTheme.colorScheme.onPrimary,
-                    modifier   = Modifier.padding(horizontal = 16.dp, vertical = 7.dp)
-                )
+                // Countdown chip
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = MaterialTheme.colorScheme.primary
+                ) {
+                    Text(
+                        text       = countdown,
+                        fontSize   = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = DefaultFontFamily,
+                        color      = MaterialTheme.colorScheme.onPrimary,
+                        modifier   = Modifier.padding(horizontal = 16.dp, vertical = 7.dp)
+                    )
+                }
+
+                // Propose button
+                Button(
+                    onClick = onProposeClick,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onPrimaryContainer),
+                    shape = RoundedCornerShape(50)
+                ) {
+                    Text(
+                        text = "PROPOSE ALARM",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = DefaultFontFamily,
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    )
+                }
             }
         }
     }
@@ -249,6 +331,7 @@ fun AlarmHeroCard(
 @Composable
 fun ActiveTribesSection(
     tribes:   List<TribeInfo>,
+    onTribeClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
@@ -269,18 +352,19 @@ fun ActiveTribesSection(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             tribes.forEach { tribe ->
-                TribeChip(tribe = tribe)
+                TribeChip(tribe = tribe, onClick = { onTribeClick(tribe.name) })
             }
         }
     }
 }
 
 @Composable
-private fun TribeChip(tribe: TribeInfo) {
+private fun TribeChip(tribe: TribeInfo, onClick: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 0.dp
+        tonalElevation = 0.dp,
+        onClick = onClick
     ) {
         Row(
             modifier              = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
@@ -520,11 +604,12 @@ private fun HomePreview() {
     MelukoTheme {
         HomeScreenContent(
             nextAlarmTime = "07:30",
-            activeTribes  = listOf(
-                TribeInfo("Hostel D4",   null, 8),
-                TribeInfo("MIT CS 4th",  null, 12),
-                TribeInfo("Early Birds", null, 5),
-            )
+            activeTribes = emptyList(),
+            isAlarmRinging = false,
+            onDismissAlarm = {},
+            onReset = {},
+            onTribeClick = {},
+            onProposeClick = {}
         )
     }
 }

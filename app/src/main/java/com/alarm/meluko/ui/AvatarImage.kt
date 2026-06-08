@@ -67,7 +67,7 @@ fun UserAvatar(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text       = name.first().uppercaseChar().toString(),
+                text       = name.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
                 fontSize   = (size.value * 0.38f).sp,
                 fontWeight = FontWeight.Black,
                 fontFamily = DefaultFontFamily,
@@ -113,7 +113,7 @@ fun TribeAvatar(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text       = name.first().uppercaseChar().toString(),
+                text       = name.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
                 fontSize   = (size.value * 0.38f).sp,
                 fontWeight = FontWeight.Black,
                 fontFamily = DefaultFontFamily,

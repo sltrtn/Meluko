@@ -45,36 +45,23 @@ data class TribeProgress(
     val totalCount:  Int
 )
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Sample data — will be wired to Firestore in a later session
-// ─────────────────────────────────────────────────────────────────────────────
-private val sampleMembers = listOf(
-    TribeMember("Aisha",  null, false, 14, WakeStatus.Awake,    "6:47 AM"),
-    TribeMember("You",    null, true,  12, WakeStatus.Awake,    "7:28 AM"),
-    TribeMember("Sachin", null, false,  8, WakeStatus.Awake,    "7:02 AM"),
-    TribeMember("Priya",  null, false,  5, WakeStatus.Sleeping, null),
-    TribeMember("Joe",    null, false,  3, WakeStatus.Missed,   null),
-    TribeMember("Riya",   null, false,  2, WakeStatus.Awake,    "7:15 AM"),
-)
-
-private val sampleTribes = listOf(
-    TribeProgress("Hostel D4",   null,  6, 8),
-    TribeProgress("MIT CS 4th",  null,  5, 12),
-    TribeProgress("Early Birds", null,  3, 5),
-)
+// Sample data has been moved to SocialViewModel for fallback
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  SocialScreen
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 fun SocialScreen(
+    socialViewModel: SocialViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
     onNavigateToTribe: (String) -> Unit = {}
 ) {
-    val leaderboard    = remember { sampleMembers.sortedByDescending { it.streakDays } }
-    val stillSleeping  = remember { sampleMembers.filter { it.status == WakeStatus.Sleeping } }
-    val awakeCount     = remember { sampleMembers.count { it.status == WakeStatus.Awake } }
-    val total          = sampleMembers.size
-    val youRank        = remember { leaderboard.indexOfFirst { it.isYou } + 1 }
+    val members by socialViewModel.members.collectAsState()
+    val tribes by socialViewModel.tribes.collectAsState()
+
+    val stillSleeping  = remember(members) { members.filter { it.status == WakeStatus.Sleeping } }
+    val awakeCount     = remember(members) { members.count { it.status == WakeStatus.Awake } }
+    val total          = members.size.coerceAtLeast(1) // avoid division by zero
+    val youRank        = remember(members) { members.indexOfFirst { it.isYou } + 1 }
     val awakePercent   = awakeCount.toFloat() / total
 
     Surface(
@@ -138,7 +125,7 @@ fun SocialScreen(
                 modifier = Modifier.padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                sampleTribes.forEach { tribe ->
+                tribes.forEach { tribe ->
                     TribeStoryChip(
                         tribe = tribe,
                         modifier = Modifier
@@ -157,7 +144,7 @@ fun SocialScreen(
             )
             Spacer(Modifier.height(10.dp))
 
-            leaderboard.forEachIndexed { index, member ->
+            members.forEachIndexed { index, member ->
                 LeaderboardRow(
                     rank     = index + 1,
                     member   = member,

@@ -71,27 +71,26 @@ fun MainScreen(
 
                 // Enter: new pane slides in from the correct side
                 val enterSlide = slideInHorizontally(
-                    animationSpec = tween(320, easing = FastOutSlowInEasing)
+                    animationSpec = tween(220, easing = FastOutSlowInEasing)
                 ) { fullWidth -> direction * fullWidth }
 
                 // Exit: old pane slides out to the opposite side
                 val exitSlide = slideOutHorizontally(
-                    animationSpec = tween(280, easing = FastOutLinearInEasing)
+                    animationSpec = tween(180, easing = FastOutLinearInEasing)
                 ) { fullWidth -> -direction * fullWidth }
 
-                // Subtle fade layered on top for the "weighted" feel —
-                // the pane doesn't just move, it also gains/loses presence
-                (enterSlide + fadeIn(tween(200)))
-                    .togetherWith(exitSlide + fadeOut(tween(150)))
+                // Subtle fade layered on top for the "weighted" feel
+                (enterSlide + fadeIn(tween(150)))
+                    .togetherWith(exitSlide + fadeOut(tween(100)))
             },
             modifier = Modifier.fillMaxSize(),
             label    = "tabSlide"
         ) { tab ->
             when (tab) {
                 0 -> SocialScreen(onNavigateToTribe = onNavigateToTribe)
-                1 -> HomeScreen()
+                1 -> HomeScreen(onTribeClick = onNavigateToTribe)
                 2 -> AccountScreen()
-                else -> HomeScreen()
+                else -> HomeScreen(onTribeClick = onNavigateToTribe)
             }
         }
 

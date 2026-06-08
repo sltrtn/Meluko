@@ -32,23 +32,22 @@ import com.alarm.meluko.ui.theme.MelukoTheme
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 fun AccountScreen(
-    authViewModel: AuthViewModel = hiltViewModel()
+    authViewModel: AuthViewModel = hiltViewModel(),
+    accountViewModel: AccountViewModel = hiltViewModel(),
+    socialViewModel: SocialViewModel = hiltViewModel()
 ) {
-    // Hardcoded profile — replace with Firestore user document later
-    val displayName  = "Mad"
-    val email        = "mad@meluko.app"
-    val initial      = displayName.first().uppercaseChar().toString()
-    val streakDays   = 12
-    val rankOverall  = 2
-    val totalWakes   = 47
-    val bestStreak   = 14
-    val accuracy     = 94
+    val displayName by accountViewModel.displayName.collectAsState()
+    val streakDays by accountViewModel.streakDays.collectAsState()
+    val bestStreak by accountViewModel.bestStreak.collectAsState()
+    val totalWakes by accountViewModel.totalWakes.collectAsState()
+    val username by accountViewModel.username.collectAsState()
+    val tribesProgress by socialViewModel.tribes.collectAsState()
 
-    val activeTribes = listOf(
-        TribeInfo("Hostel D4",   null, 8),
-        TribeInfo("MIT CS 4th",  null, 12),
-        TribeInfo("Early Birds", null, 5),
-    )
+    // rank and accuracy are not yet computed server-side; hide until available
+
+    val activeTribes = tribesProgress.map { 
+        TribeInfo(it.name, it.photoUrl, it.totalCount) 
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -95,7 +94,7 @@ fun AccountScreen(
                 modifier  = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp),
-                shape     = RoundedCornerShape(36.dp),
+                shape     = RoundedCornerShape(24.dp),
                 colors    = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.tertiaryContainer
                 ),
@@ -128,8 +127,8 @@ fun AccountScreen(
                                 color      = MaterialTheme.colorScheme.onTertiaryContainer
                             )
                             Text(
-                                text       = email,
-                                fontSize   = 12.sp,
+                                text       = "@$username",
+                                fontSize   = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = BodyFontFamily,
                                 color      = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.6f)
@@ -139,7 +138,7 @@ fun AccountScreen(
 
                     Spacer(Modifier.height(20.dp))
 
-                    // Pills row — streak + rank
+                    // Pills row — streak + wakes
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         AccountPill(
                             text  = "🔥 $streakDays-day streak",
@@ -147,9 +146,9 @@ fun AccountScreen(
                             on    = MaterialTheme.colorScheme.onTertiary
                         )
                         AccountPill(
-                            text  = "🏆 #$rankOverall overall",
-                            color = MaterialTheme.colorScheme.tertiary,
-                            on    = MaterialTheme.colorScheme.onTertiary
+                            text  = "☀️ $totalWakes wake-ups",
+                            color = MaterialTheme.colorScheme.primary,
+                            on    = MaterialTheme.colorScheme.onPrimary
                         )
                     }
                 }
@@ -165,8 +164,8 @@ fun AccountScreen(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 AccountStatCard("☀️", "$totalWakes", "Wake-ups",  Modifier.weight(1f))
-                AccountStatCard("📅", "$bestStreak", "Best streak", Modifier.weight(1f))
-                AccountStatCard("🎯", "$accuracy%", "Accuracy",  Modifier.weight(1f))
+                AccountStatCard("🔥", "$streakDays d", "Streak", Modifier.weight(1f))
+                AccountStatCard("🏅", "$bestStreak d", "Best",  Modifier.weight(1f))
             }
 
             Spacer(Modifier.height(24.dp))

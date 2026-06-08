@@ -8,6 +8,17 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.alarm.meluko.ui.AlarmScreen
 import com.alarm.meluko.ui.theme.MelukoTheme
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import android.media.RingtoneManager
+import android.media.Ringtone
+import android.os.Vibrator
+import android.os.VibrationEffect
+import android.content.Context
+import android.app.NotificationManager
 
 /**
  * AlarmActivity
@@ -30,6 +41,9 @@ class AlarmActivity : ComponentActivity() {
         const val EXTRA_ALARM_TIME = "extra_alarm_time"
     }
 
+    private var ringtone: Ringtone? = null
+    private var vibrator: Vibrator? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -51,6 +65,24 @@ class AlarmActivity : ComponentActivity() {
 
         enableEdgeToEdge()
 
+        // ── Start Audio & Vibration ───────────────────────────────────────────
+        val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+        ringtone = RingtoneManager.getRingtone(this, alarmUri)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            ringtone?.isLooping = true
+        }
+        ringtone?.play()
+
+        vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val timings = longArrayOf(0, 1000, 1000)
+            vibrator?.vibrate(VibrationEffect.createWaveform(timings, 0))
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator?.vibrate(longArrayOf(0, 1000, 1000), 0)
+        }
+
         val alarmTime = intent.getStringExtra(EXTRA_ALARM_TIME) ?: "07:30"
 
         setContent {
@@ -59,7 +91,27 @@ class AlarmActivity : ComponentActivity() {
                 AlarmScreen(
                     alarmTime = alarmTime,
                     onDismiss = {
-                        // TODO: mark as "Awake" in Firestore, update streak
+                        val uid = FirebaseAuth.getInstance().currentUser?.uid
+                        if (uid != null) {
+                            FirebaseFirestore.getInstance().collection("user_alarms").document(uid).get()
+                                .addOnSuccessListener { userAlarmDoc ->
+                                    val tribeId = userAlarmDoc.getString("primaryTribeId")
+                                    if (tribeId != null) {
+                                        val wakeTime = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())
+
+                                        // Write awake status to tribe member doc
+                                        FirebaseFirestore.getInstance()
+                                            .collection("tribes").document(tribeId)
+                                            .collection("members").document(uid)
+                                            .update(
+                                                mapOf(
+                                                    "todayStatus" to "awake",
+                                                    "todayWakeTime" to wakeTime
+                                                )
+                                            )
+                                    }
+                                }
+                        }
                         finish()
                     }
                 )
@@ -69,7 +121,14 @@ class AlarmActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // Clear FLAG_KEEP_SCREEN_ON when alarm is dismissed
+        // Stop audio and vibration when activity is destroyed
+        ringtone?.stop()
+        vibrator?.cancel()
+        
+        // Clear the FullScreenIntent notification
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.cancel(101)
+
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 }

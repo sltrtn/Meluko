@@ -10,6 +10,9 @@ import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.SetOptions
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,7 +35,7 @@ sealed class AuthState {
     /** Sign-in sheet is open / Firebase credential exchange in flight */
     data object Loading : AuthState()
     /** User is authenticated — carry their display name forward */
-    data class Success(val displayName: String?) : AuthState()
+    data class Success(val displayName: String?, val isNewUser: Boolean) : AuthState()
     /** Something went wrong — surface the message to the UI */
     data class Error(val message: String) : AuthState()
 }
@@ -64,11 +67,37 @@ class AuthViewModel @Inject constructor(
 
     /**
      * Check on startup: if Firebase already has a session, skip the login screen.
-     * Time: O(1) — local memory check, no network call.
+     *
+     * We do NOT trust Firebase Auth alone — a user's Firestore data may have been
+     * deleted while their Auth session was still alive. So we check:
+     *   1. `users/{uid}` document exists in Firestore
+     *   2. `user_alarms/{uid}` has a `primaryTribeId` field
+     * Only when BOTH conditions are true do we treat this as a returning user.
+     * Otherwise we route them through onboarding.
      */
     fun checkExistingSession() {
-        if (firebaseAuth.currentUser != null) {
-            _authState.value = AuthState.Success(firebaseAuth.currentUser?.displayName)
+        val currentUser = firebaseAuth.currentUser ?: return
+        viewModelScope.launch {
+            try {
+                val firestore = FirebaseFirestore.getInstance()
+                val uid = currentUser.uid
+
+                val userDoc = firestore.collection("users").document(uid).get().await()
+                val alarmsDoc = firestore.collection("user_alarms").document(uid).get().await()
+
+                // A fully-onboarded returning user must have both documents.
+                // `primaryTribeId` being present (and non-null) signals completed onboarding.
+                val isReturningUser = userDoc.exists() &&
+                    alarmsDoc.getString("primaryTribeId") != null
+
+                _authState.value = AuthState.Success(
+                    displayName = currentUser.displayName,
+                    isNewUser = !isReturningUser
+                )
+            } catch (e: Exception) {
+                // Network failure, permissions error, etc. — fail safe to login screen.
+                _authState.value = AuthState.Error("Session check failed: ${e.message}")
+            }
         }
     }
 
@@ -114,10 +143,42 @@ class AuthViewModel @Inject constructor(
                 // extension on Firebase Tasks so we don't need callbacks
                 val firebaseCredential = GoogleAuthProvider.getCredential(googleIdToken, null)
                 val authResult = firebaseAuth.signInWithCredential(firebaseCredential).await()
+                
+                val user = authResult.user
+                if (user != null) {
+                    val firestore = FirebaseFirestore.getInstance()
+                    val uid = user.uid
 
-                _authState.value = AuthState.Success(
-                    authResult.user?.displayName
-                )
+                    // Persist/merge the user profile. `username` and `bio` are written as
+                    // empty strings on first sign-in so downstream reads never see missing fields.
+                    // SetOptions.merge() means we never overwrite data the user already filled in.
+                    firestore.collection("users").document(uid)
+                        .set(
+                            mapOf(
+                                "displayName" to user.displayName,
+                                "email" to user.email,
+                                "photoUrl" to null,
+                                "username" to "",
+                                "bio" to "",
+                                "createdAt" to FieldValue.serverTimestamp()
+                            ),
+                            SetOptions.merge()
+                        ).await()
+
+                    // Determine new-vs-returning purely from Firestore data, NOT from
+                    // additionalUserInfo.isNewUser — that flag is unreliable when Firestore
+                    // records have been deleted while the Auth account still exists.
+                    val alarmsDoc = firestore.collection("user_alarms").document(uid).get().await()
+                    val userDoc = firestore.collection("users").document(uid).get().await()
+
+                    val isReturningUser = userDoc.exists() &&
+                        alarmsDoc.getString("primaryTribeId") != null
+
+                    _authState.value = AuthState.Success(
+                        displayName = user.displayName,
+                        isNewUser = !isReturningUser
+                    )
+                }
 
             } catch (e: GetCredentialException) {
                 // User cancelled the picker or no accounts on device

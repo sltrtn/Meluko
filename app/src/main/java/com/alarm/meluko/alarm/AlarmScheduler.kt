@@ -72,6 +72,34 @@ class AlarmScheduler(private val context: Context) {
     }
 
     /**
+     * Schedule an alarm exactly [seconds] in the future (for testing).
+     */
+    fun scheduleIn(seconds: Int) {
+        val triggerAtMillis = System.currentTimeMillis() + (seconds * 1000)
+        
+        val intent = Intent(context, AlarmReceiver::class.java).apply {
+            putExtra(AlarmActivity.EXTRA_ALARM_TIME, "TEST")
+        }
+
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            REQUEST_CODE,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (alarmManager.canScheduleExactAlarms()) {
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+            } else {
+                alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+            }
+        } else {
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+        }
+    }
+
+    /**
      * Cancel any pending alarm.
      */
     fun cancel() {
