@@ -130,6 +130,7 @@ class OnboardingViewModel @Inject constructor() : ViewModel() {
                             "streakDays" to 0,
                             "bestStreak" to 0,
                             "totalWakes" to 0,
+                            "vetoesUsed" to 0,
                             "rank" to 1,
                             "joinedAt" to FieldValue.serverTimestamp()
                         )
@@ -200,6 +201,7 @@ class OnboardingViewModel @Inject constructor() : ViewModel() {
                             "streakDays" to 0,
                             "bestStreak" to 0,
                             "totalWakes" to 0,
+                            "vetoesUsed" to 0,
                             "rank" to (currentCount + 1).toInt(),
                             "joinedAt" to FieldValue.serverTimestamp()
                         )
