@@ -130,6 +130,7 @@ fun SocialScreen(
                         tribe = tribe,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .pressScale()
                             .clickable { onNavigateToTribe(tribe.name) }
                     )
                 }
@@ -350,7 +351,7 @@ private fun LeaderboardRow(
     val medal = when (rank) { 1 -> "🥇"; 2 -> "🥈"; 3 -> "🥉"; else -> null }
 
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().pressScale(),
         shape    = RoundedCornerShape(20.dp),
         color    = if (member.isYou)
                        MaterialTheme.colorScheme.primaryContainer

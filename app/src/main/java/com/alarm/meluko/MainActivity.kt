@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
  * @AndroidEntryPoint — tells Hilt to inject dependencies into this Activity.
  * Without this annotation, hiltViewModel() inside AppNavGraph would crash
  * because there's no Hilt component attached to the Activity.
+ *
  */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {

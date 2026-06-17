@@ -3,6 +3,14 @@ package com.alarm.meluko.ui
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,11 +28,7 @@ import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -373,11 +377,26 @@ fun AccountScreen(
                 )
             }
 
+            // Hero entrance spring animation
+            var heroVisible by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) { heroVisible = true }
+            val heroScale by animateFloatAsState(
+                targetValue = if (heroVisible) 1f else 0.90f,
+                animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow),
+                label = "heroScale"
+            )
+            val heroAlpha by animateFloatAsState(
+                targetValue = if (heroVisible) 1f else 0f,
+                animationSpec = spring(Spring.DampingRatioNoBouncy, Spring.StiffnessMedium),
+                label = "heroAlpha"
+            )
+
             // Hero profile card
             Card(
-                modifier = Modifier
+                modifier  = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
+                    .padding(horizontal = 20.dp)
+                    .graphicsLayer { scaleX = heroScale; scaleY = heroScale; alpha = heroAlpha },
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
                 elevation = CardDefaults.cardElevation(0.dp)
@@ -603,7 +622,7 @@ private fun AccountStatCard(
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.height(90.dp),
+        modifier  = modifier.height(90.dp).pressScale(pressedScale = 0.93f),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         elevation = CardDefaults.cardElevation(0.dp)
@@ -646,7 +665,7 @@ private fun SettingsRow(
     onClick: () -> Unit
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().pressScale(),
         color = androidx.compose.ui.graphics.Color.Transparent,
         onClick = onClick
     ) {

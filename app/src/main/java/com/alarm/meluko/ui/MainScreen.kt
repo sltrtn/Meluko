@@ -18,73 +18,59 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.alarm.meluko.ui.theme.DefaultFontFamily
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Tab model
-//  Order: Social (left) | Home (centre) | Account (right)
-//  This determines the slide direction — lower index = left, higher = right
-// ─────────────────────────────────────────────────────────────────────────────
 private data class Tab(
-    val label:         String,
-    val selectedIcon:  ImageVector,
+    val label: String,
+    val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector,
 )
 
 private val tabs = listOf(
-    Tab("Social",  Icons.Rounded.Group,  Icons.Outlined.Group),
-    Tab("Home",    Icons.Filled.Home,    Icons.Outlined.Home),
-    Tab("Account", Icons.Filled.Person,  Icons.Outlined.Person),
+    Tab("Social", Icons.Rounded.Group, Icons.Outlined.Group),
+    Tab("Home", Icons.Filled.Home, Icons.Outlined.Home),
+    Tab("Account", Icons.Filled.Person, Icons.Outlined.Person),
 )
 
-private const val HOME_TAB = 1  // centre tab is the default
+private const val HOME_TAB = 1
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  MainScreen
-// ─────────────────────────────────────────────────────────────────────────────
 @Composable
 fun MainScreen(
     onNavigateToTribe: (String) -> Unit = {}
 ) {
-    // rememberSaveable: survives NavController back-stack pops and config changes
-    // If we used remember here, popping from TribeDetailScreen resets to HOME_TAB
     var selectedTab by rememberSaveable { mutableIntStateOf(HOME_TAB) }
-
-    // Background on the Box prevents the window white showing through
-    // during the cross-slide animation between panes
     val bgColor = MaterialTheme.colorScheme.background
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(bgColor)
     ) {
-
-        // ── Tab content with directional slide ────────────────────────────────
         AnimatedContent(
-            targetState  = selectedTab,
+            targetState = selectedTab,
             transitionSpec = {
-                // Direction: moving to a higher index = slide left (→ right pane)
-                //            moving to a lower  index = slide right (← left pane)
                 val direction = if (targetState > initialState) 1 else -1
-
-                // Enter: new pane slides in from the correct side
-                val enterSlide = slideInHorizontally(
-                    animationSpec = tween(220, easing = FastOutSlowInEasing)
-                ) { fullWidth -> direction * fullWidth }
-
-                // Exit: old pane slides out to the opposite side
-                val exitSlide = slideOutHorizontally(
-                    animationSpec = tween(180, easing = FastOutLinearInEasing)
-                ) { fullWidth -> -direction * fullWidth }
-
-                // Subtle fade layered on top for the "weighted" feel
-                (enterSlide + fadeIn(tween(150)))
-                    .togetherWith(exitSlide + fadeOut(tween(100)))
+                val enter = slideInHorizontally(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    )
+                ) { it * direction / 3 } + fadeIn(tween(180))
+                val exit = slideOutHorizontally(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    )
+                ) { -it * direction / 3 } + fadeOut(tween(140))
+                enter.togetherWith(exit)
             },
             modifier = Modifier.fillMaxSize(),
-            label    = "tabSlide"
+            label = "tabSlide"
         ) { tab ->
             when (tab) {
                 0 -> SocialScreen(onNavigateToTribe = onNavigateToTribe)
@@ -94,23 +80,19 @@ fun MainScreen(
             }
         }
 
-        // ── Glass navigation bar ──────────────────────────────────────────────
-        GlassNavigationBar(
-            selectedTab   = selectedTab,
+        ExpressiveNavigationBar(
+            selectedTab = selectedTab,
             onTabSelected = { selectedTab = it },
             modifier = Modifier.align(Alignment.BottomCenter)
         )
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Glass Navigation Bar
-// ─────────────────────────────────────────────────────────────────────────────
 @Composable
-fun GlassNavigationBar(
-    selectedTab:   Int,
+fun ExpressiveNavigationBar(
+    selectedTab: Int,
     onTabSelected: (Int) -> Unit,
-    modifier:      Modifier = Modifier
+    modifier: Modifier = Modifier
 ) {
     val surfaceColor = MaterialTheme.colorScheme.surface
 
@@ -120,38 +102,55 @@ fun GlassNavigationBar(
             .background(
                 Brush.verticalGradient(
                     0.00f to Color.Transparent,
-                    0.25f to surfaceColor.copy(alpha = 0.55f),
-                    0.60f to surfaceColor.copy(alpha = 0.85f),
-                    1.00f to surfaceColor.copy(alpha = 0.97f),
+                    0.20f to surfaceColor.copy(alpha = 0.6f),
+                    0.55f to surfaceColor.copy(alpha = 0.88f),
+                    1.00f to surfaceColor.copy(alpha = 0.98f),
                 )
             )
     ) {
         NavigationBar(
             containerColor = Color.Transparent,
             tonalElevation = 0.dp,
-            windowInsets   = WindowInsets.navigationBars,
+            windowInsets = WindowInsets.navigationBars,
         ) {
             tabs.forEachIndexed { index, tab ->
                 val isSelected = selectedTab == index
+
+                val iconScale by animateFloatAsState(
+                    targetValue = if (isSelected) 1.20f else 1.0f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    ),
+                    label = "iconScale$index"
+                )
+
                 NavigationBarItem(
                     selected = isSelected,
-                    onClick  = { onTabSelected(index) },
+                    onClick = { onTabSelected(index) },
+                    modifier = Modifier.pressScale(pressedScale = 0.86f),
                     icon = {
                         Icon(
-                            imageVector        = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
-                            contentDescription = tab.label
+                            imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
+                            contentDescription = tab.label,
+                            modifier = Modifier.graphicsLayer {
+                                scaleX = iconScale
+                                scaleY = iconScale
+                            }
                         )
                     },
                     label = {
                         Text(
-                            text       = tab.label,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                            text = tab.label,
+                            fontFamily = DefaultFontFamily,
+                            fontWeight = if (isSelected) FontWeight.Black else FontWeight.Normal,
+                            fontSize = if (isSelected) 11.sp else 10.sp
                         )
                     },
                     colors = NavigationBarItemDefaults.colors(
-                        indicatorColor      = MaterialTheme.colorScheme.secondaryContainer,
-                        selectedIconColor   = MaterialTheme.colorScheme.onSecondaryContainer,
-                        selectedTextColor   = MaterialTheme.colorScheme.onSurface,
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
                         unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -160,3 +159,10 @@ fun GlassNavigationBar(
         }
     }
 }
+
+@Composable
+fun GlassNavigationBar(
+    selectedTab: Int,
+    onTabSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) = ExpressiveNavigationBar(selectedTab, onTabSelected, modifier)
