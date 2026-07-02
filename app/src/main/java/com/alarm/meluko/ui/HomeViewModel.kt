@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import com.alarm.meluko.alarm.AlarmScheduler
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,26 +20,60 @@ class HomeViewModel @Inject constructor(
     private val _nextAlarmTime = MutableStateFlow("--:--")
     val nextAlarmTime = _nextAlarmTime.asStateFlow()
 
-    // Kept for HomeScreen UI compatibility (debug overlay)
+    private val _primaryTribeId = MutableStateFlow<String?>(null)
+    val primaryTribeId = _primaryTribeId.asStateFlow()
+
+    private val _streakDays = MutableStateFlow(0)
+    val streakDays = _streakDays.asStateFlow()
+
+    private val _totalWakes = MutableStateFlow(0)
+    val totalWakes = _totalWakes.asStateFlow()
+
+    private val _rank = MutableStateFlow(1)
+    val rank = _rank.asStateFlow()
+
     private val _isAlarmRinging = MutableStateFlow(false)
     val isAlarmRinging = _isAlarmRinging.asStateFlow()
 
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
+    private val uid get() = auth.currentUser?.uid
+
+    private var memberRegistration: ListenerRegistration? = null
 
     init {
-        val uid = auth.currentUser?.uid
-        if (uid != null) {
-            db.collection("user_alarms").document(uid)
+        val currentUid = uid
+        if (currentUid != null) {
+            db.collection("user_alarms").document(currentUid)
                 .addSnapshotListener { snapshot, error ->
                     if (error != null || snapshot == null) return@addSnapshotListener
+                    val tribeId = snapshot.getString("primaryTribeId")
+                    _primaryTribeId.value = tribeId
                     val time = snapshot.getString("followedAlarmTime") ?: return@addSnapshotListener
                     if (time == _nextAlarmTime.value && time != "--:--") return@addSnapshotListener
                     _nextAlarmTime.value = time
-                    // Auto-schedule the alarm whenever the time changes in Firestore
                     scheduleAlarm(time)
+
+                    // Set up member stats listener when tribeId is known
+                    if (tribeId != null) {
+                        memberRegistration?.remove()
+                        memberRegistration = db.collection("tribes").document(tribeId)
+                            .collection("members").document(currentUid)
+                            .addSnapshotListener { memberSnap, _ ->
+                                if (memberSnap != null && memberSnap.exists()) {
+                                    _streakDays.value = memberSnap.getLong("streakDays")?.toInt() ?: 0
+                                    _totalWakes.value = memberSnap.getLong("totalWakes")?.toInt() ?: 0
+                                    _rank.value = memberSnap.getLong("rank")?.toInt() ?: 1
+                                }
+                            }
+                    }
                 }
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        memberRegistration?.remove()
     }
 
     private fun scheduleAlarm(time: String) {

@@ -39,6 +39,7 @@ data class TribeMember(
 )
 
 data class TribeProgress(
+    val id:          String,
     val name:        String,
     val photoUrl:    String?,
     val awakeCount:  Int,
@@ -75,34 +76,7 @@ fun SocialScreen(
                 .statusBarsPadding()
         ) {
             // ── Header ────────────────────────────────────────────────────────
-            val today = remember {
-                java.text.SimpleDateFormat("EEEE, d MMMM", java.util.Locale.getDefault())
-                    .format(java.util.Date())
-            }
-            Column(
-                modifier            = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text          = "SOCIAL",
-                    fontSize      = 18.sp,
-                    fontWeight    = FontWeight.Black,
-                    fontFamily    = DefaultFontFamily,
-                    letterSpacing = 6.sp,
-                    color         = MaterialTheme.colorScheme.primary
-                )
-                Spacer(Modifier.height(3.dp))
-                Text(
-                    text          = today,
-                    fontSize      = 12.sp,
-                    fontWeight    = FontWeight.Bold,
-                    fontFamily    = DefaultFontFamily,
-                    letterSpacing = 0.5.sp,
-                    color         = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            ScreenHeader("SOCIAL")
 
             // ── Morning Board ─────────────────────────────────────────────────
             MorningBoard(
@@ -126,13 +100,13 @@ fun SocialScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 tribes.forEach { tribe ->
-                    TribeStoryChip(
-                        tribe = tribe,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .pressScale()
-                            .clickable { onNavigateToTribe(tribe.name) }
-                    )
+                        TribeStoryChip(
+                            tribe = tribe,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .pressScale()
+                                .clickable { onNavigateToTribe(tribe.id) }
+                        )
                 }
             }
 

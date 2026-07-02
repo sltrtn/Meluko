@@ -58,7 +58,7 @@ class SocialViewModel @Inject constructor() : ViewModel() {
                     val name = tribeSnap.getString("name") ?: "Your Tribe"
                     val memberCount = tribeSnap.getLong("memberCount")?.toInt() ?: 1
                     val photoUrl = tribeSnap.getString("photoUrl")
-                    _tribes.value = listOf(TribeProgress(name, photoUrl, 0, memberCount))
+                    _tribes.value = listOf(TribeProgress(primaryTribeId, name, photoUrl, 0, memberCount))
                 }
             }
 

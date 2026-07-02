@@ -1,9 +1,18 @@
 package com.alarm.meluko.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -39,16 +48,16 @@ fun VetoBottomSheet(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text       = "CAST VETO 🔥",
+                text       = "CAST VETO",
                 fontSize   = 22.sp,
                 fontWeight = FontWeight.Black,
                 fontFamily = DefaultFontFamily,
                 letterSpacing = 2.sp,
                 color      = MaterialTheme.colorScheme.error
             )
-            
+
             Spacer(Modifier.height(16.dp))
-            
+
             Text(
                 text       = "Are you absolutely sure? A veto will instantly kill this proposal for the entire tribe.",
                 fontSize   = 14.sp,
@@ -59,8 +68,8 @@ fun VetoBottomSheet(
             )
 
             Spacer(Modifier.height(24.dp))
-            
-            // Vetos Remaining visualization
+
+            // Vetos Remaining visualization with animation
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                 shape = RoundedCornerShape(16.dp)
@@ -79,11 +88,21 @@ fun VetoBottomSheet(
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         repeat(2) { index ->
-                            Text(
-                                text = "🔥",
-                                fontSize = 16.sp,
-                                modifier = Modifier.alpha(if (index < vetosLeft) 1f else 0.2f)
-                            )
+                            val isActive = index < vetosLeft
+                            AnimatedContent(
+                                targetState = isActive,
+                                transitionSpec = {
+                                    (scaleIn(tween(200)) + fadeIn(tween(200)))
+                                        .togetherWith(scaleOut(tween(150)) + fadeOut(tween(150)))
+                                },
+                                label = "vetoIcon$index"
+                            ) { active ->
+                                Text(
+                                    text = if (active) "\uD83D\uDD25" else "\u25CB",
+                                    fontSize = 16.sp,
+                                    modifier = Modifier.alpha(if (active) 1f else 0.3f)
+                                )
+                            }
                         }
                     }
                 }
@@ -103,7 +122,7 @@ fun VetoBottomSheet(
                         .height(64.dp),
                     shape = RoundedCornerShape(20.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF2E7D32), // Deep Green
+                        containerColor = Color(0xFF2E7D32),
                         contentColor = Color.White
                     )
                 ) {
@@ -114,7 +133,7 @@ fun VetoBottomSheet(
                         fontFamily = DefaultFontFamily
                     )
                 }
-                
+
                 Button(
                     onClick = onConfirmVeto,
                     enabled = vetosLeft > 0,

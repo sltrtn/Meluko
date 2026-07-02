@@ -2,6 +2,7 @@ package com.alarm.meluko.alarm
 
 import android.app.NotificationManager
 import android.content.Context
+import android.graphics.Color
 import android.media.Ringtone
 import android.media.RingtoneManager
 import android.os.Build
@@ -13,27 +14,37 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.view.WindowCompat
 import com.alarm.meluko.ui.AlarmScreen
 import com.alarm.meluko.ui.theme.MelukoTheme
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import dagger.hilt.android.AndroidEntryPoint
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import javax.inject.Inject
 import kotlin.math.max
 
+@AndroidEntryPoint
 class AlarmActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_ALARM_TIME = "extra_alarm_time"
     }
 
+    @Inject lateinit var firebaseAuth: FirebaseAuth
+    @Inject lateinit var firebaseFirestore: FirebaseFirestore
+
     private var ringtone: Ringtone? = null
     private var vibrator: Vibrator? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Set window background to black before anything else to eliminate white flash
+        window.decorView.setBackgroundColor(Color.BLACK)
 
         // Show over lock screen
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
@@ -90,8 +101,7 @@ class AlarmActivity : ComponentActivity() {
     }
 
     private fun handleDismiss(alarmTime: String) {
-        val uid = FirebaseAuth.getInstance().currentUser?.uid
-        val db = FirebaseFirestore.getInstance()
+        val uid = firebaseAuth.currentUser?.uid
 
         if (uid != null) {
             val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -99,23 +109,21 @@ class AlarmActivity : ComponentActivity() {
             val today = dateFormat.format(Date())
             val wakeTime = timeFormat.format(Date())
 
-            // Calculate yesterday's date string
             val cal = Calendar.getInstance()
             cal.add(Calendar.DAY_OF_YEAR, -1)
             val yesterday = dateFormat.format(cal.time)
 
-            db.collection("user_alarms").document(uid).get()
+            firebaseFirestore.collection("user_alarms").document(uid).get()
                 .addOnSuccessListener { userAlarmDoc ->
                     val tribeId = userAlarmDoc.getString("primaryTribeId")
                     if (tribeId != null) {
-                        val memberRef = db.collection("tribes").document(tribeId)
+                        val memberRef = firebaseFirestore.collection("tribes").document(tribeId)
                             .collection("members").document(uid)
 
                         memberRef.get().addOnSuccessListener { memberDoc ->
                             val lastWakeDate = memberDoc.getString("lastWakeDate")
                             val currentStatus = memberDoc.getString("todayStatus") ?: "sleeping"
 
-                            // Avoid double-counting if dismissed twice
                             if (currentStatus == "awake") {
                                 finish()
                                 return@addOnSuccessListener
@@ -125,7 +133,6 @@ class AlarmActivity : ComponentActivity() {
                             val currentBestStreak = memberDoc.getLong("bestStreak")?.toInt() ?: 0
                             val currentTotalWakes = memberDoc.getLong("totalWakes")?.toInt() ?: 0
 
-                            // Streak continues if they woke up yesterday, otherwise resets to 1
                             val newStreak = if (lastWakeDate == yesterday) currentStreak + 1 else 1
                             val newBestStreak = max(newStreak, currentBestStreak)
                             val newTotalWakes = currentTotalWakes + 1
@@ -140,7 +147,6 @@ class AlarmActivity : ComponentActivity() {
                                     "lastWakeDate" to today
                                 )
                             ).addOnCompleteListener {
-                                // Reschedule alarm for tomorrow with the same time
                                 rescheduleAlarmForTomorrow(alarmTime, userAlarmDoc)
                                 finish()
                             }
@@ -159,7 +165,6 @@ class AlarmActivity : ComponentActivity() {
         alarmTime: String,
         userAlarmDoc: com.google.firebase.firestore.DocumentSnapshot
     ) {
-        // Only reschedule if alarms are active
         val isActive = userAlarmDoc.getBoolean("active") ?: true
         if (!isActive) return
 
@@ -168,11 +173,8 @@ class AlarmActivity : ComponentActivity() {
             if (parts.size != 2) return
             val hour = parts[0].toIntOrNull() ?: return
             val minute = parts[1].toIntOrNull() ?: return
-            // AlarmScheduler.schedule() already handles today vs tomorrow logic:
-            // if the time has passed today it schedules for tomorrow.
             AlarmScheduler(applicationContext).schedule(hour, minute)
-        } catch (e: Exception) {
-            // Fail silently
+        } catch (_: Exception) {
         }
     }
 

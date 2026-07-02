@@ -96,15 +96,9 @@ fun TribeDetailScreen(
     // Propose sheet
     if (showProposeSheet) {
         ProposeAlarmBottomSheet(
-            onDismiss = { showProposeSheet = false },
-            onPropose = { proposedTime ->
-                proposalViewModel.createProposal(
-                    tribeId = tribeId,
-                    proposedTime = proposedTime
-                ) {
-                    showProposeSheet = false
-                }
-            }
+            tribeId = tribeId,
+            proposalViewModel = proposalViewModel,
+            onDismiss = { showProposeSheet = false }
         )
     }
 

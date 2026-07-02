@@ -60,13 +60,13 @@ fun MainScreen(
                         dampingRatio = Spring.DampingRatioMediumBouncy,
                         stiffness = Spring.StiffnessMediumLow
                     )
-                ) { it * direction / 3 } + fadeIn(tween(180))
+                ) { it * direction } + fadeIn(tween(120))
                 val exit = slideOutHorizontally(
                     animationSpec = spring(
                         dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMedium
+                        stiffness = Spring.StiffnessHigh
                     )
-                ) { -it * direction / 3 } + fadeOut(tween(140))
+                ) { -it * direction } + fadeOut(tween(80))
                 enter.togetherWith(exit)
             },
             modifier = Modifier.fillMaxSize(),

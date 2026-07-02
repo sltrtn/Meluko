@@ -54,7 +54,7 @@
             android:exported="false"
             android:showWhenLocked="true"
             android:turnScreenOn="true"
-            android:theme="@style/Theme.Meluko" />
+            android:theme="@style/Theme.Meluko.Alarm" />
 
         <!-- Alarm broadcast receiver — triggered by AlarmManager
              exported="false": only this app can send broadcasts to it

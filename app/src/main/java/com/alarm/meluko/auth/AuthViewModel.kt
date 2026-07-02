@@ -120,9 +120,9 @@ class AuthViewModel @Inject constructor(
             try {
                 // Step 1: Configure what credential type we want
                 val googleIdOption = GetGoogleIdOption.Builder()
-                    .setFilterByAuthorizedAccounts(false) // show ALL Google accounts on device
+                    .setFilterByAuthorizedAccounts(false)
                     .setServerClientId(webClientId)
-                    .setAutoSelectEnabled(false) // don't silently sign in — show picker
+                    .setAutoSelectEnabled(false)
                     .build()
 
                 val request = GetCredentialRequest.Builder()

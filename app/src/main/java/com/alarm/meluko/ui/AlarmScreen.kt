@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -116,7 +117,7 @@ fun AlarmScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .scale(pulse),
+                    .graphicsLayer { scaleX = pulse; scaleY = pulse },
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 AlarmTimeCard(number = parts.first,  modifier = Modifier.weight(1f))

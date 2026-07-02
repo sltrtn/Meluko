@@ -1,8 +1,11 @@
 package com.alarm.meluko.ui
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -19,13 +22,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Icon
 import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.border
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.os.Build
@@ -56,32 +53,38 @@ data class TribeInfo(
 fun HomeScreen(
     onTribeClick: (String) -> Unit,
     homeViewModel: HomeViewModel = hiltViewModel(),
-    socialViewModel: SocialViewModel = hiltViewModel()
+    socialViewModel: SocialViewModel = hiltViewModel(),
+    proposalViewModel: ProposalViewModel = hiltViewModel()
 ) {
     val nextAlarmTime by homeViewModel.nextAlarmTime.collectAsState()
     val isAlarmRinging by homeViewModel.isAlarmRinging.collectAsState()
+    val primaryTribeId by homeViewModel.primaryTribeId.collectAsState()
+    val streakDays by homeViewModel.streakDays.collectAsState()
+    val totalWakes by homeViewModel.totalWakes.collectAsState()
+    val rank by homeViewModel.rank.collectAsState()
     val tribesProgress by socialViewModel.tribes.collectAsState()
-    
-    val activeTribes = tribesProgress.map { 
-        TribeInfo(it.name, it.photoUrl, it.totalCount) 
+
+    val activeTribes = tribesProgress.map {
+        TribeInfo(it.name, it.photoUrl, it.totalCount)
     }
 
     var showProposeSheet by remember { mutableStateOf(false) }
 
-    if (showProposeSheet) {
+    if (showProposeSheet && primaryTribeId != null) {
         ProposeAlarmBottomSheet(
-            onDismiss = { showProposeSheet = false },
-            onPropose = { time ->
-                showProposeSheet = false
-                // Ideally we'd call a ViewModel method here, but for UI purposes we close it.
-            }
+            tribeId = primaryTribeId!!,
+            proposalViewModel = proposalViewModel,
+            onDismiss = { showProposeSheet = false }
         )
     }
 
     HomeScreenContent(
-        nextAlarmTime = nextAlarmTime,
-        activeTribes  = activeTribes,
+        nextAlarmTime  = nextAlarmTime,
+        activeTribes   = activeTribes,
         isAlarmRinging = isAlarmRinging,
+        streakDays     = streakDays,
+        totalWakes     = totalWakes,
+        rank           = rank,
         onDismissAlarm = { homeViewModel.dismissAlarm() },
         onReset        = { homeViewModel.resetAlarm() },
         onTribeClick   = onTribeClick,
@@ -97,6 +100,9 @@ fun HomeScreenContent(
     nextAlarmTime:  String,
     activeTribes:   List<TribeInfo>,
     isAlarmRinging: Boolean,
+    streakDays:     Int = 0,
+    totalWakes:     Int = 0,
+    rank:           Int = 1,
     onDismissAlarm: () -> Unit,
     onReset:        () -> Unit,
     onTribeClick:   (String) -> Unit,
@@ -114,10 +120,7 @@ fun HomeScreenContent(
         ) {
 
             // ── Top Bar ───────────────────────────────────────────────────────
-            val today = remember {
-                java.text.SimpleDateFormat("EEEE, MMMM d", java.util.Locale.getDefault())
-                    .format(java.util.Date())
-            }
+            ScreenHeader("MELUKO")
 
             // Request notification permission for Android 13+ (API 33+)
             val permissionLauncher = rememberLauncherForActivityResult(
@@ -134,32 +137,6 @@ fun HomeScreenContent(
                     permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
             }
-
-            Column(
-                modifier            = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text          = "MELUKO",
-                    fontSize      = 18.sp,
-                    fontWeight    = FontWeight.Black,
-                    fontFamily    = DefaultFontFamily,
-                    letterSpacing = 6.sp,
-                    color         = MaterialTheme.colorScheme.primary
-                )
-                Spacer(Modifier.height(3.dp))
-                Text(
-                    text          = today,
-                    fontSize      = 12.sp,
-                    fontWeight    = FontWeight.Bold,
-                    fontFamily    = DefaultFontFamily,
-                    letterSpacing = 0.5.sp,
-                    color         = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
 
             // ── Hero alarm card ───────────────────────────────────────────────
             AlarmHeroCard(
@@ -180,12 +157,21 @@ fun HomeScreenContent(
             Spacer(Modifier.height(20.dp))
 
             // ── Stats ─────────────────────────────────────────────────────────
-            StatsRow(modifier = Modifier.padding(horizontal = 20.dp))
+            StatsRow(
+                streakDays = streakDays,
+                totalWakes = totalWakes,
+                rank       = rank,
+                modifier   = Modifier.padding(horizontal = 20.dp)
+            )
 
             Spacer(Modifier.height(20.dp))
 
-            // ── Consistency Graph ──────────────────────────────────────────────
-            WeeklyConsistencyGraph(modifier = Modifier.padding(horizontal = 20.dp))
+            // ── Consistency ─────────────────────────────────────────────────────
+            ConsistencyCard(
+                streakDays = streakDays,
+                totalWakes = totalWakes,
+                modifier   = Modifier.padding(horizontal = 20.dp)
+            )
 
             // Extra padding for glass nav bar
             Spacer(Modifier.height(120.dp))
@@ -204,16 +190,6 @@ fun AlarmHeroCard(
 ) {
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }
-    val heroScale by animateFloatAsState(
-        targetValue = if (visible) 1f else 0.88f,
-        animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow),
-        label = "heroScale"
-    )
-    val heroAlpha by animateFloatAsState(
-        targetValue = if (visible) 1f else 0f,
-        animationSpec = spring(Spring.DampingRatioNoBouncy, Spring.StiffnessMedium),
-        label = "heroAlpha"
-    )
 
     // Live countdown — updates every minute
     val countdown by produceState(initialValue = computeCountdown(nextAlarmTime), key1 = nextAlarmTime) {
@@ -226,11 +202,20 @@ fun AlarmHeroCard(
     val timePart = nextAlarmTime.replace(" AM", "").replace(" PM", "").trim()
     val amPmPart = if (nextAlarmTime.contains("PM", ignoreCase = true)) "PM" else "AM"
 
-    Card(
-        modifier  = modifier
-            .fillMaxWidth()
-            .pressScale()
-            .graphicsLayer { scaleX = heroScale; scaleY = heroScale; alpha = heroAlpha },
+    AnimatedVisibility(
+        visible = visible,
+        enter = scaleIn(
+            animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow),
+            initialScale = 0.88f
+        ) + fadeIn(
+            animationSpec = spring(Spring.DampingRatioNoBouncy, Spring.StiffnessMedium)
+        ),
+        modifier = modifier
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .pressScale(),
         shape     = RoundedCornerShape(24.dp),
         colors    = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer
@@ -315,6 +300,7 @@ fun AlarmHeroCard(
             }
         }
     }
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -393,14 +379,19 @@ private fun TribeChip(tribe: TribeInfo, onClick: () -> Unit) {
 //  Stats Row
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
-private fun StatsRow(modifier: Modifier = Modifier) {
+private fun StatsRow(
+    streakDays: Int,
+    totalWakes: Int,
+    rank: Int,
+    modifier: Modifier = Modifier
+) {
     Row(
         modifier              = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        StatCard("🔥", "12",  "Streak",    MaterialTheme.colorScheme.primaryContainer,    MaterialTheme.colorScheme.onPrimaryContainer,   Modifier.weight(1f))
-        StatCard("❄️", "2",   "Freezes",   MaterialTheme.colorScheme.secondaryContainer,  MaterialTheme.colorScheme.onSecondaryContainer,  Modifier.weight(1f))
-        StatCard("🏆", "#2",  "Rank",      MaterialTheme.colorScheme.tertiaryContainer,   MaterialTheme.colorScheme.onTertiaryContainer,   Modifier.weight(1f))
+        StatCard("🔥", "$streakDays", "Streak",    MaterialTheme.colorScheme.primaryContainer,    MaterialTheme.colorScheme.onPrimaryContainer,   Modifier.weight(1f))
+        StatCard("☀️", "$totalWakes", "Wake-ups",  MaterialTheme.colorScheme.secondaryContainer,  MaterialTheme.colorScheme.onSecondaryContainer,  Modifier.weight(1f))
+        StatCard("🏆", "#$rank",      "Rank",      MaterialTheme.colorScheme.tertiaryContainer,   MaterialTheme.colorScheme.onTertiaryContainer,   Modifier.weight(1f))
     }
 }
 
@@ -477,23 +468,14 @@ fun computeCountdown(timeString: String): String {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Consistency Graph
+//  Consistency Card — real data from Firestore
 // ─────────────────────────────────────────────────────────────────────────────
-enum class DayState { SUCCESS, FAIL, FUTURE }
-data class DailyRecord(val label: String, val state: DayState)
-
 @Composable
-fun WeeklyConsistencyGraph(modifier: Modifier = Modifier) {
-    val mockWeek = listOf(
-        DailyRecord("M", DayState.SUCCESS),
-        DailyRecord("T", DayState.SUCCESS),
-        DailyRecord("W", DayState.FAIL),
-        DailyRecord("T", DayState.SUCCESS),
-        DailyRecord("F", DayState.SUCCESS),
-        DailyRecord("S", DayState.FUTURE),
-        DailyRecord("S", DayState.FUTURE),
-    )
-
+fun ConsistencyCard(
+    streakDays: Int,
+    totalWakes: Int,
+    modifier: Modifier = Modifier
+) {
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
@@ -515,75 +497,39 @@ fun WeeklyConsistencyGraph(modifier: Modifier = Modifier) {
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                mockWeek.forEach { day ->
-                    DayCircle(day)
-                }
+                ConsistencyMetric("🔥", "$streakDays", "Current streak")
+                ConsistencyMetric("☀️", "$totalWakes", "Total wake-ups")
             }
         }
     }
 }
 
 @Composable
-private fun DayCircle(day: DailyRecord) {
-    val (bgColor, contentColor, borderColor) = when (day.state) {
-        DayState.SUCCESS -> Triple(
-            MaterialTheme.colorScheme.primaryContainer,
-            MaterialTheme.colorScheme.primary,
-            Color.Transparent
-        )
-        DayState.FAIL -> Triple(
-            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f),
-            MaterialTheme.colorScheme.error,
-            MaterialTheme.colorScheme.error.copy(alpha = 0.4f)
-        )
-        DayState.FUTURE -> Triple(
-            Color.Transparent,
-            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
-        )
-    }
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(32.dp)
-                .clip(CircleShape)
-                .background(bgColor)
-                .border(
-                    width = if (borderColor != Color.Transparent) 1.5.dp else 0.dp,
-                    color = borderColor,
-                    shape = CircleShape
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            if (day.state == DayState.SUCCESS) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = null,
-                    tint = contentColor,
-                    modifier = Modifier.size(18.dp)
-                )
-            } else if (day.state == DayState.FAIL) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = null,
-                    tint = contentColor,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-        }
+private fun ConsistencyMetric(
+    emoji: String,
+    value: String,
+    label: String
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(emoji, fontSize = 24.sp)
+        Spacer(Modifier.height(4.dp))
         Text(
-            text = day.label,
+            text = value,
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Black,
+            fontFamily = DefaultFontFamily,
+            color = MaterialTheme.colorScheme.onSurface,
+            lineHeight = 30.sp
+        )
+        Text(
+            text = label,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
             fontFamily = BodyFontFamily,
-            color = contentColor
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            letterSpacing = 0.3.sp
         )
     }
 }
@@ -599,6 +545,9 @@ private fun HomePreview() {
             nextAlarmTime = "07:30",
             activeTribes = emptyList(),
             isAlarmRinging = false,
+            streakDays = 5,
+            totalWakes = 23,
+            rank = 2,
             onDismissAlarm = {},
             onReset = {},
             onTribeClick = {},

@@ -5,7 +5,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -348,59 +347,28 @@ fun AccountScreen(
                 .statusBarsPadding()
         ) {
             // Header
-            val today = remember {
-                java.text.SimpleDateFormat("EEEE, d MMMM", java.util.Locale.getDefault())
-                    .format(java.util.Date())
-            }
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "ACCOUNT",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Black,
-                    fontFamily = DefaultFontFamily,
-                    letterSpacing = 6.sp,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(Modifier.height(3.dp))
-                Text(
-                    text = today,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = DefaultFontFamily,
-                    letterSpacing = 0.5.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            ScreenHeader("ACCOUNT")
 
-            // Hero entrance spring animation
+            // Hero profile card with entrance animation
             var heroVisible by remember { mutableStateOf(false) }
             LaunchedEffect(Unit) { heroVisible = true }
-            val heroScale by animateFloatAsState(
-                targetValue = if (heroVisible) 1f else 0.90f,
-                animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow),
-                label = "heroScale"
-            )
-            val heroAlpha by animateFloatAsState(
-                targetValue = if (heroVisible) 1f else 0f,
-                animationSpec = spring(Spring.DampingRatioNoBouncy, Spring.StiffnessMedium),
-                label = "heroAlpha"
-            )
 
-            // Hero profile card
-            Card(
-                modifier  = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    .graphicsLayer { scaleX = heroScale; scaleY = heroScale; alpha = heroAlpha },
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
-                elevation = CardDefaults.cardElevation(0.dp)
+            AnimatedVisibility(
+                visible = heroVisible,
+                enter = scaleIn(
+                    animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow),
+                    initialScale = 0.90f
+                ) + fadeIn(
+                    animationSpec = spring(Spring.DampingRatioNoBouncy, Spring.StiffnessMedium)
+                ),
+                modifier = Modifier.padding(horizontal = 20.dp)
             ) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+                    elevation = CardDefaults.cardElevation(0.dp)
+                ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -453,6 +421,7 @@ fun AccountScreen(
                         )
                     }
                 }
+            }
             }
 
             Spacer(Modifier.height(20.dp))

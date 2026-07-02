@@ -34,6 +34,7 @@ object Routes {
     const val ONBOARDING = "onboarding"
     const val CREATE_PROFILE = "create_profile"
     const val JOIN_TRIBE = "join_tribe"
+    const val SET_FIRST_ALARM = "set_first_alarm"
     const val WELCOME_BACK = "welcome_back"
     const val HOME  = "home"   // points to MainScreen (3-pane shell)
     const val TRIBE_DETAIL = "tribe_detail/{tribeId}"
@@ -139,6 +140,16 @@ fun AppNavGraph() {
 
         composable(Routes.JOIN_TRIBE) {
             com.alarm.meluko.ui.JoinOrCreateTribeScreen(
+                onFinish = {
+                    navController.navigate(Routes.SET_FIRST_ALARM) {
+                        popUpTo(Routes.JOIN_TRIBE) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(Routes.SET_FIRST_ALARM) {
+            com.alarm.meluko.ui.SetFirstAlarmScreen(
                 onFinish = {
                     navController.navigate(Routes.HOME) {
                         popUpTo(0) { inclusive = true }

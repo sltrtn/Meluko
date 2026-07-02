@@ -189,26 +189,32 @@ class ProposalViewModel @Inject constructor() : ViewModel() {
      */
     private suspend fun acceptProposal(tribeId: String, proposalId: String, proposedTime: String) {
         try {
-            // Update the proposal status
-            db.collection("tribes").document(tribeId)
-                .collection("proposals").document(proposalId)
-                .update("status", "accepted").await()
-
-            // Update the tribe's canonical alarm time
-            db.collection("tribes").document(tribeId)
-                .update("alarmTime", proposedTime).await()
-
-            // Update every member's followedAlarmTime in user_alarms
             val members = db.collection("tribes").document(tribeId)
                 .collection("members").get().await()
+
+            val batch = db.batch()
+
+            batch.update(
+                db.collection("tribes").document(tribeId)
+                    .collection("proposals").document(proposalId),
+                "status", "accepted"
+            )
+
+            batch.update(
+                db.collection("tribes").document(tribeId),
+                "alarmTime", proposedTime
+            )
+
             for (member in members.documents) {
-                db.collection("user_alarms").document(member.id)
-                    .update("followedAlarmTime", proposedTime).await()
+                batch.update(
+                    db.collection("user_alarms").document(member.id),
+                    "followedAlarmTime", proposedTime
+                )
             }
 
+            batch.commit().await()
             _activeProposal.value = null
-        } catch (e: Exception) {
-            // Fail silently — another client will retry
+        } catch (_: Exception) {
         }
     }
 
