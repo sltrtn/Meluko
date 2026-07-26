@@ -1,5 +1,7 @@
 package com.alarm.meluko.ui
 
+import android.content.Intent
+import android.media.RingtoneManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -24,6 +26,7 @@ import androidx.compose.material.icons.automirrored.outlined.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.CameraAlt
+import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
@@ -52,6 +55,7 @@ fun AccountScreen(
     accountViewModel: AccountViewModel = hiltViewModel(),
     socialViewModel: SocialViewModel = hiltViewModel()
 ) {
+    val isLoaded by accountViewModel.isLoaded.collectAsState()
     val displayName by accountViewModel.displayName.collectAsState()
     val username by accountViewModel.username.collectAsState()
     val bio by accountViewModel.bio.collectAsState()
@@ -62,8 +66,18 @@ fun AccountScreen(
     val isUpdating by accountViewModel.isUpdating.collectAsState()
     val notificationsEnabled by accountViewModel.notificationsEnabled.collectAsState()
     val tribesProgress by socialViewModel.tribes.collectAsState()
+    val accountError by accountViewModel.error.collectAsState()
 
-    val activeTribes = tribesProgress.map { TribeInfo(it.name, it.photoUrl, it.totalCount) }
+    val activeTribes = tribesProgress.map { TribeInfo(it.id, it.name, it.photoUrl, it.totalCount) }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(accountError) {
+        accountError?.let {
+            snackbarHostState.showSnackbar(it)
+            accountViewModel.clearError()
+        }
+    }
 
     // Dialog / sheet state
     var showEditProfile by remember { mutableStateOf(false) }
@@ -88,6 +102,18 @@ fun AccountScreen(
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? -> pickedImageUri = uri }
+
+    val alarmToneUri by accountViewModel.alarmToneUri.collectAsState()
+    var showToneMissing by remember { mutableStateOf(false) }
+
+    val ringtonePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val uri = result.data?.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+        if (uri != null) {
+            accountViewModel.updateAlarmTone(uri.toString())
+        }
+    }
 
     // ── Edit Profile Dialog ───────────────────────────────────────────────────
     if (showEditProfile) {
@@ -174,7 +200,7 @@ fun AccountScreen(
                     onClick = { showEditProfile = false; pickedImageUri = null },
                     enabled = !isUpdating
                 ) {
-                    Text("Cancel", fontFamily = DefaultFontFamily)
+                    Text("Cancel", fontWeight = FontWeight.Bold, fontFamily = DefaultFontFamily)
                 }
             }
         )
@@ -336,16 +362,21 @@ fun AccountScreen(
     }
 
     // ── Main Screen ───────────────────────────────────────────────────────────
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .statusBarsPadding()
+    Box(modifier = Modifier.fillMaxSize()) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
         ) {
+            if (!isLoaded) {
+                AccountShimmer()
+                return@Surface
+            }
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .statusBarsPadding()
+            ) {
             // Header
             ScreenHeader("ACCOUNT")
 
@@ -356,16 +387,16 @@ fun AccountScreen(
             AnimatedVisibility(
                 visible = heroVisible,
                 enter = scaleIn(
-                    animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow),
+                    animationSpec = MotionSpec.cardEnter,
                     initialScale = 0.90f
                 ) + fadeIn(
-                    animationSpec = spring(Spring.DampingRatioNoBouncy, Spring.StiffnessMedium)
+                    animationSpec = MotionSpec.touch
                 ),
                 modifier = Modifier.padding(horizontal = 20.dp)
             ) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
                     elevation = CardDefaults.cardElevation(0.dp)
                 ) {
@@ -458,7 +489,7 @@ fun AccountScreen(
                 ) {
                     activeTribes.forEach { tribe ->
                         Surface(
-                            shape = RoundedCornerShape(18.dp),
+                            shape = RoundedCornerShape(12.dp),
                             color = MaterialTheme.colorScheme.surfaceContainerHigh
                         ) {
                             Row(
@@ -504,7 +535,7 @@ fun AccountScreen(
             Spacer(Modifier.height(10.dp))
             Surface(
                 modifier = Modifier.padding(horizontal = 20.dp),
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -534,6 +565,27 @@ fun AccountScreen(
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                     )
                     SettingsRow(
+                        icon = Icons.Filled.Alarm,
+                        label = "Alarm Tone",
+                        subtitle = if (alarmToneUri != null) "Custom tone set" else "Default alarm sound",
+                        onClick = {
+                            val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                                putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
+                                putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                                putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                                alarmToneUri?.let {
+                                    putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Uri.parse(it))
+                                }
+                            }
+                            ringtonePicker.launch(intent)
+                        }
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = 0.5.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+                    SettingsRow(
                         icon = Icons.Outlined.Info,
                         label = "About Meluko",
                         onClick = { showAbout = true }
@@ -548,7 +600,7 @@ fun AccountScreen(
                 modifier = Modifier
                     .padding(horizontal = 20.dp)
                     .fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.errorContainer
             ) {
                 SettingsRow(
@@ -562,6 +614,12 @@ fun AccountScreen(
 
             Spacer(Modifier.height(120.dp))
         }
+    }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
     }
 }
 
@@ -592,7 +650,7 @@ private fun AccountStatCard(
 ) {
     Card(
         modifier  = modifier.height(90.dp).pressScale(pressedScale = 0.93f),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
@@ -616,7 +674,7 @@ private fun AccountStatCard(
                     text = label,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = DefaultFontFamily,
+                    fontFamily = BodyFontFamily,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     letterSpacing = 0.3.sp
                 )
@@ -629,6 +687,7 @@ private fun AccountStatCard(
 private fun SettingsRow(
     icon: ImageVector,
     label: String,
+    subtitle: String? = null,
     tint: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface,
     textColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface,
     onClick: () -> Unit
@@ -651,14 +710,24 @@ private fun SettingsRow(
                 tint = tint,
                 modifier = Modifier.size(20.dp)
             )
-            Text(
-                text = label,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = DefaultFontFamily,
-                color = textColor,
-                modifier = Modifier.weight(1f)
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = DefaultFontFamily,
+                    color = textColor
+                )
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Normal,
+                        fontFamily = BodyFontFamily,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
@@ -666,6 +735,64 @@ private fun SettingsRow(
                 modifier = Modifier.size(18.dp)
             )
         }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Shimmer skeleton
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun AccountShimmer(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .statusBarsPadding()
+    ) {
+        Spacer(Modifier.height(20.dp))
+        ScreenHeader("ACCOUNT")
+        Spacer(Modifier.height(12.dp))
+        ShimmerCard(
+            modifier = Modifier.padding(horizontal = 20.dp),
+            height = 180.dp
+        )
+        Spacer(Modifier.height(20.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            ShimmerStatCard(Modifier.weight(1f))
+            ShimmerStatCard(Modifier.weight(1f))
+            ShimmerStatCard(Modifier.weight(1f))
+        }
+        Spacer(Modifier.height(24.dp))
+        ShimmerLine(
+            width = 100.dp,
+            height = 14.dp,
+            modifier = Modifier.padding(horizontal = 20.dp)
+        )
+        Spacer(Modifier.height(12.dp))
+        repeat(2) {
+            ShimmerCard(
+                modifier = Modifier
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 8.dp),
+                height = 52.dp
+            )
+        }
+        Spacer(Modifier.height(24.dp))
+        ShimmerLine(
+            width = 100.dp,
+            height = 14.dp,
+            modifier = Modifier.padding(horizontal = 20.dp)
+        )
+        Spacer(Modifier.height(12.dp))
+        repeat(3) {
+            ShimmerSettingsRow(modifier = Modifier.padding(horizontal = 20.dp))
+        }
+        Spacer(Modifier.height(120.dp))
     }
 }
 

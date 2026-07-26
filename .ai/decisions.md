@@ -4,6 +4,76 @@
 
 ---
 
+## 2026-07-27 — Alarm Reschedule on Fire (Not on Dismiss)
+
+**Decision:** Reschedule the next-day alarm in `AlarmReceiver.onReceive()` when the alarm fires, not in `AlarmActivity.handleDismiss()` when the user dismisses.
+
+**Reason:** If reschedule happens on dismiss, the next alarm is lost if the user force-kills the app, the dismiss Firestore write fails, or the user walks away from the phone. Rescheduling on fire guarantees the next alarm is always set.
+
+**Alternatives Considered:**
+- Reschedule on dismiss (previous approach) — fragile, depends on user interaction.
+- `setRepeating` AlarmManager API — doesn't support exact alarms on Doze mode.
+- WorkManager daily task — too imprecise for a wake-up alarm.
+
+**Consequences:**
+- Alarm is always rescheduled, even if user never interacts.
+- `AlarmActivity.handleDismiss()` no longer calls `rescheduleAlarmForTomorrow()` — cleaner separation.
+- Same time next day is scheduled; if user changes tribe alarm time, the next fire will use the new time.
+
+---
+
+## 2026-07-27 — System Ringtone Picker for Alarm Tone
+
+**Decision:** Use Android's built-in `RingtoneManager.ACTION_RINGTONE_PICKER` for alarm tone selection, storing the URI in Firestore.
+
+**Reason:** Zero dependencies, works on all Android versions, user already knows the system picker, covers all system tones. Differentiation via Spotify/sound packs can come in v2.
+
+**Alternatives Considered:**
+- Spotify Web API previews — requires OAuth flow, network dependency, 30-sec clips only. Deferred to v2.
+- Bundled sound packs — adds APK size, limited selection. Deferred to v2.
+- In-app custom picker — reinvents the wheel, system picker is more familiar.
+
+**Consequences:**
+- Tone URI stored at `user_alarms/{uid}.alarmToneUri` in Firestore.
+- AlarmActivity plays default immediately, then async loads custom tone (no delay on alarm start).
+- AccountScreen shows "Custom tone set" or "Default alarm sound" subtitle.
+
+---
+
+## 2026-07-27 — 24h Time Format for Proposals
+
+**Decision:** Normalize proposal time to 24h format (`"HH:MM"`) before Firestore write, converting from the picker's 12h AM/PM format.
+
+**Reason:** `AlarmScheduler.schedule(hour, minute)` and `BootReceiver` both expect 24h format. `computeCountdown` parses hours as `HOUR_OF_DAY`. Storing 12h format caused silent bugs (AM/PM ignored, wrong alarm times).
+
+**Alternatives Considered:**
+- Store both 12h display and 24h computed — adds complexity, two fields to maintain.
+- Change all consumers to parse 12h — more touch points, more fragile.
+
+**Consequences:**
+- All times in Firestore are now `"HH:MM"` (24h).
+- `ProposeAlarmBottomSheet` converts at write time: `"07:30 AM"` → `"07:30"`, `"07:30 PM"` → `"19:30"`.
+- `computeCountdown` works correctly for all times.
+
+---
+
+## 2026-07-27 — TribeInfo ID Field
+
+**Decision:** Add `id: String` to `TribeInfo` data class and pass Firestore document ID through the tribe info chain.
+
+**Reason:** Tribe navigation (`TribeDetailScreen`) expects a Firestore document ID as the route argument. Without `id` in `TribeInfo`, the tribe name was being passed as the ID, causing Firestore lookups to fail.
+
+**Alternatives Considered:**
+- Store tribe ID in a separate map — adds indirection, harder to maintain.
+- Look up tribe by name in Firestore — requires additional query, unreliable if names aren't unique.
+
+**Consequences:**
+- `TribeInfo` now carries `id`, `name`, `photoUrl`, `memberCount`.
+- All `TribeInfo` construction sites updated to pass `it.id`.
+- `onTribeClick(tribe.id)` instead of `onTribeClick(tribe.name)`.
+
+---
+
 ## 2026-07-02 — Single Activity Architecture
 
 **Decision:** Use a single Activity (`MainActivity`) with Compose Navigation for all screens.
@@ -89,20 +159,3 @@
 - `proposals/{proposalId}.expiresAt` is set to `createdAt + 2 hours` on creation.
 - Auto-accept is a Firestore scheduled function (or client-side check on query).
 - Veto is final — once vetoed, the proposal cannot be re-activated.
-
----
-
-## 2026-07-02 — Clash Display Fonts Bundled in APK
-
-**Decision:** Bundle Clash Display OTF fonts (6 weights) and Inter TTF (2 weights) in the APK resources rather than downloading them.
-
-**Reason:** Instant availability on first launch. No network dependency for rendering core UI text. Fonts are small (~2MB total).
-
-**Alternatives Considered:**
-- Google Fonts download — requires network, adds latency on first render.
-- System fonts only — too limited, Clash Display is central to the brand identity.
-
-**Consequences:**
-- APK size increases by ~2MB.
-- Font files are in `res/font/` and defined in `Type.kt` via `FontFamily`.
-- All typography roles use Clash Display with Inter as fallback.

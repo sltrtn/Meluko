@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.alarm.meluko.ui.theme.DefaultFontFamily
 import com.alarm.meluko.ui.theme.MelukoTheme
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @Preview(showBackground = true)
@@ -113,8 +114,10 @@ fun SwipeToWakeButton(
             .fillMaxWidth()
             .height(trackHeight)
             .onSizeChanged { trackWidth = it.width }
-            .pointerInput(maxDrag) {
-                if (maxDrag <= 0f) return@pointerInput
+            .pointerInput(Unit) {
+                if (maxDrag <= 0f) {
+                    snapshotFlow { maxDrag }.first { it > 0f }
+                }
                 detectHorizontalDragGestures(
                     onDragStart = {
                         isDragging = true
@@ -122,8 +125,9 @@ fun SwipeToWakeButton(
                     },
                     onDragEnd = {
                         isDragging = false
+                        val finalDrag = dragOffset
                         scope.launch {
-                            if (springOffset.value >= threshold) {
+                            if (finalDrag >= threshold) {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 springOffset.animateTo(maxDrag, springSpec)
                                 onWake()

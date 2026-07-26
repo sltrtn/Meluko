@@ -63,13 +63,13 @@ private val MelukoDarkColors = darkColorScheme(
     onError                = md_dark_onError,
     errorContainer         = md_dark_errorContainer,
     onErrorContainer       = md_dark_onErrorContainer,
-    background             = Color.Black, // TRUE BLACK
+    background             = Color(0xFF0F0F12),
     onBackground           = md_dark_onBackground,
-    surface                = Color.Black, // TRUE BLACK
+    surface                = Color(0xFF0F0F12),
     onSurface              = md_dark_onSurface,
-    surfaceVariant         = Color(0xFF121212), // Very dark for cards
+    surfaceVariant         = Color(0xFF18181C),
     onSurfaceVariant       = md_dark_onSurfaceVariant,
-    surfaceContainerHigh   = Color(0xFF1E1E1E), // Slightly lighter for contrast
+    surfaceContainerHigh   = Color(0xFF222226),
     outline                = md_dark_outline,
     outlineVariant         = md_dark_outlineVariant,
     inverseSurface         = md_dark_inverseSurface,
@@ -88,16 +88,16 @@ fun MelukoTheme(
             val context = LocalContext.current
             val dynamicScheme = if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
             
-            // If we are in dark mode, inject true black backgrounds but keep wallpaper accent colors
+            // Dark mode: use near-black base so elevation tints are visible
             if (darkTheme) {
                 dynamicScheme.copy(
-                    background = Color.Black,
-                    surface = Color.Black,
-                    surfaceContainer = Color.Black,
-                    surfaceContainerLow = Color.Black,
-                    surfaceContainerLowest = Color.Black,
-                    surfaceVariant = Color(0xFF121212),
-                    surfaceContainerHigh = Color(0xFF1E1E1E)
+                    background = Color(0xFF0F0F12),
+                    surface = Color(0xFF0F0F12),
+                    surfaceContainer = Color(0xFF0F0F12),
+                    surfaceContainerLow = Color(0xFF0F0F12),
+                    surfaceContainerLowest = Color(0xFF0F0F12),
+                    surfaceVariant = Color(0xFF18181C),
+                    surfaceContainerHigh = Color(0xFF222226)
                 )
             } else {
                 dynamicScheme

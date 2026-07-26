@@ -64,32 +64,38 @@ tribe_members/{tribeId}/members/{userId}
 
 user_alarms/{userId}
   ├── alarmTime: String ("HH:mm")
-  ├── tribeId: String
+  ├── followedAlarmTime: String ("HH:mm")
+  ├── primaryTribeId: String
+  ├── alarmToneUri: String? (custom alarm tone URI)
+  ├── active: Boolean
   └── lastUpdated: Timestamp
 
-proposals/{proposalId}
-  ├── tribeId: String
+proposals/{proposalId} (subcollection of tribes/{tribeId}/proposals)
   ├── proposedBy: String (userId)
-  ├── proposedTime: String ("HH:mm")
-  ├── vetoes: Map<String, Boolean>
-  ├── expiresAt: Timestamp
-  ├── status: String (active/accepted/rejected)
+  ├── proposedByName: String
+  ├── proposedTime: String ("HH:mm" 24h format)
+  ├── vetoedBy: List<String>
+  ├── vetoCount: Int
+  ├── status: String (pending/accepted/rejected)
+  ├── expiresAt: Timestamp (createdAt + 2 hours)
   └── createdAt: Timestamp
 ```
 
 ### Alarm Flow
 
 ```
-1. Tribe member proposes alarm time (ProposeAlarmBottomSheet)
+1. Tribe member proposes alarm time (ProposeAlarmBottomSheet — 24h format)
 2. Proposal written to Firestore → triggers notification to all tribe members
 3. 2-hour veto window begins
 4. Other members see proposal in HomeScreen → can veto (VetoBottomSheet)
 5. If any veto: proposal rejected
-6. If no veto after 2h: proposal accepted → updates user_alarms for all members
+6. If no veto after 2h: proposal accepted → updates followedAlarmTime for all tribe members
 7. AlarmScheduler sets exact alarm via AlarmManager
-8. At alarm time: AlarmReceiver fires → AlarmActivity opens (full screen, no dismiss)
-9. User must swipe-to-wake (SwipeToWakeButton) to dismiss
-10. Dismiss → Firestore status updated to "awake" → streak incremented
+8. At alarm time: AlarmReceiver fires → reschedules for next day immediately → posts full-screen notification
+9. User taps notification → AlarmActivity opens (full screen, lock screen)
+10. AlarmActivity plays default tone, then async loads custom tone from Firestore if set
+11. User must swipe-to-wake (SwipeToWakeButton) to dismiss
+12. Dismiss → Firestore status updated to "awake" → streak incremented
 ```
 
 ---
@@ -102,9 +108,12 @@ proposals/{proposalId}
 - **Wake Tracking** — Real-time member statuses (awake/sleeping/missed)
 - **Streaks** — Awake streaks, best streaks, total wakes
 - **Swipe-to-Wake** — Custom swipe gesture on full-screen alarm
+- **Custom Alarm Tones** — System ringtone picker, stored in Firestore
+- **Alarm Reliability** — Reschedule on fire, BootReceiver, daily repeat
 - **Expressive UI** — Scatter-letter splash, spring animations, glass-morphism nav bar
 - **Dynamic Colors** — Android 12+ wallpaper-based color theming
 - **Dark Mode** — True black dark mode (purely AMOLED)
+- **Crashlytics** — Firebase crash reporting, auto-initializes
 
 ---
 
@@ -126,6 +135,7 @@ proposals/{proposalId}
 - `firebase-auth-ktx` — Firebase Authentication
 - `firebase-firestore-ktx` — Real-time NoSQL database
 - `firebase-storage-ktx` — File uploads
+- `firebase-crashlytics-ktx` — Crash reporting
 - `hilt-navigation-compose` — Hilt ViewModel scoping
 - `coil-compose` — Async image loading
 - `androidx.credentials` — Credential Manager (Google Sign-In)

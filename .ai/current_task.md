@@ -6,32 +6,32 @@
 
 ## Objective
 
-**Polish Meluko's onboarding, alarm UX, and data wiring** — fix alarm screen flash, complete onboarding with SetFirstAlarmScreen, wire propose flow to Firestore, replace mock/hardcoded data with real values.
+Ship Meluko v1. Tribe system and alarm reliability are the core focus. V1 ship today.
 
 ---
 
 ## Status
 
-🔄 Completed — SHA-1/SHA-256 fingerprints added to Firebase Console. Google Sign-In now works. Remaining: diagnose crashes on tribe screen and elsewhere.
+✅ Tribe system polish complete — 13 critical/high fixes done. Alarm reliability improved. Build passes clean.
 
 ---
 
 ## Steps
 
-- [x] Fix alarm screen flash (dark theme, @AndroidEntryPoint, black window bg)
-- [x] Wire ProposeAlarmBottomSheet → ProposalViewModel.createProposal()
-- [x] Add SetFirstAlarmScreen to onboarding after tribe join/create
-- [x] Replace hardcoded HomeScreen stats with Firestore-driven values
-- [x] Replace WeeklyConsistencyGraph mock data with real ConsistencyCard
-- [x] Use WriteBatch in ProposalViewModel.acceptProposal()
-- [x] Fix pre-existing build errors (ExpressiveUtils, SwipeToWakeButton, AlarmScreen)
-- [x] Update .ai/ project memory for handoff
+- [x] Add Firebase Crashlytics
+- [x] Create BootReceiver for alarm reschedule on reboot
+- [x] Strip alarm screen to system alarm aesthetic
+- [x] Fix SwipeToWakeButton gesture
+- [x] Add shimmer loading states
+- [x] Migrate fonts to Outfit
+- [x] Centralize MotionSpec
+- [x] Add error handling (UiState, snackbar errors)
+- [x] Add alarm tone picker (system ringtone)
+- [x] Alarm reliability (reschedule on fire, notification channel)
+- [x] Tribe system polish — 13 fixes (navigation, race conditions, empty states, etc.)
 
 ---
 
 ## Next Immediate Step
 
-Diagnose crashes on tribe screen and elsewhere via Logcat:
-```bash
-adb logcat --pid=$(adb shell pidof -s com.alarm.meluko) *:E
-```
+Fix remaining crashes (Crashlytics data), then alarm volume control.

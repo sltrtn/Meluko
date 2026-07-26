@@ -63,7 +63,7 @@ Meluko/
 ## Design Language
 
 - **Seed color:** Sunrise Amber (#FF8C00) — warm, energetic
-- **Fonts:** Clash Display (6 weights) for headings/text, Inter for fallback
+- **Fonts:** Outfit (9 weights) for headings/text. See `.ai/design-system.md` for shared type scale.
 - **Dark mode:** True black (#000000) backgrounds
 - **Dynamic colors:** Android 12+ wallpaper-based color support
 - **Cards:** 0dp elevation, 20-24dp rounding
@@ -124,7 +124,7 @@ Meluko/
 5. **Google Sign-In** uses Android Credential Manager — do not switch to legacy Google Sign-In SDK.
 6. **Alarm permissions** require runtime checks for `SCHEDULE_EXACT_ALARM` and `USE_EXACT_ALARM` (Android 14+).
 7. **Firestore listeners** must be added/removed in ViewModel `init`/`onCleared()` lifecycle.
-8. **Design must be followed strictly** — Sunrise Amber, Clash Display, spring animations, 0dp elevation cards, uppercase headers.
+8. **Design must follow `.ai/design-system.md`** — Sunrise Amber accent, Outfit font, shared neutral tokens, spring animations, 0dp elevation cards, uppercase headers.
 
 ---
 

@@ -56,6 +56,7 @@ fun SocialScreen(
     socialViewModel: SocialViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
     onNavigateToTribe: (String) -> Unit = {}
 ) {
+    val uiState by socialViewModel.uiState.collectAsState()
     val members by socialViewModel.members.collectAsState()
     val tribes by socialViewModel.tribes.collectAsState()
 
@@ -69,6 +70,22 @@ fun SocialScreen(
         modifier = Modifier.fillMaxSize(),
         color    = MaterialTheme.colorScheme.background
     ) {
+        when (val state = uiState) {
+            is SocialUiState.Loading -> SocialShimmer()
+            is SocialUiState.Error -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = state.message,
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 14.sp,
+                        fontFamily = BodyFontFamily
+                    )
+                }
+            }
+            is SocialUiState.Success -> {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -99,14 +116,29 @@ fun SocialScreen(
                 modifier = Modifier.padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                tribes.forEach { tribe ->
-                        TribeStoryChip(
-                            tribe = tribe,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .pressScale()
-                                .clickable { onNavigateToTribe(tribe.id) }
+                if (tribes.isEmpty()) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh
+                    ) {
+                        Text(
+                            text = "Join or create a tribe to get started",
+                            fontSize = 13.sp,
+                            fontFamily = BodyFontFamily,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
                         )
+                    }
+                } else {
+                    tribes.forEach { tribe ->
+                            TribeStoryChip(
+                                tribe = tribe,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .pressScale()
+                                    .clickable { onNavigateToTribe(tribe.id) }
+                            )
+                    }
                 }
             }
 
@@ -119,12 +151,28 @@ fun SocialScreen(
             )
             Spacer(Modifier.height(10.dp))
 
-            members.forEachIndexed { index, member ->
-                LeaderboardRow(
-                    rank     = index + 1,
-                    member   = member,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
-                )
+            if (members.isEmpty()) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier.padding(horizontal = 20.dp)
+                ) {
+                    Text(
+                        text = "No members yet",
+                        fontSize = 13.sp,
+                        fontFamily = BodyFontFamily,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
+                    )
+                }
+            } else {
+                members.forEachIndexed { index, member ->
+                    LeaderboardRow(
+                        rank     = index + 1,
+                        member   = member,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                    )
+                }
             }
 
             // ── Still Sleeping ────────────────────────────────────────────────
@@ -146,6 +194,8 @@ fun SocialScreen(
             }
 
             Spacer(Modifier.height(120.dp))
+        }
+            }
         }
     }
 }
@@ -170,7 +220,7 @@ private fun MorningBoard(
 
     Card(
         modifier  = modifier.fillMaxWidth(),
-        shape     = RoundedCornerShape(36.dp),
+        shape     = RoundedCornerShape(12.dp),
         colors    = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primary
         ),
@@ -198,7 +248,7 @@ private fun MorningBoard(
                     text       = "$awakeCount of $total awake  ·  $missedCount missed",
                     fontSize   = 13.sp,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = DefaultFontFamily,
+                    fontFamily = BodyFontFamily,
                     color      = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.75f)
                 )
                 Spacer(Modifier.height(12.dp))
@@ -280,7 +330,7 @@ private fun TribeStoryChip(
 
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(12.dp),
         color = chipColor
     ) {
         Row(
@@ -326,7 +376,7 @@ private fun LeaderboardRow(
 
     Surface(
         modifier = modifier.fillMaxWidth().pressScale(),
-        shape    = RoundedCornerShape(20.dp),
+        shape    = RoundedCornerShape(12.dp),
         color    = if (member.isYou)
                        MaterialTheme.colorScheme.primaryContainer
                    else
@@ -383,7 +433,7 @@ private fun LeaderboardRow(
                     },
                     fontSize   = 11.sp,
                     fontWeight = FontWeight.Medium,
-                    fontFamily = DefaultFontFamily,
+                    fontFamily = BodyFontFamily,
                     color      = when (member.status) {
                         WakeStatus.Awake    -> MaterialTheme.colorScheme.tertiary
                         WakeStatus.Sleeping -> MaterialTheme.colorScheme.onSurfaceVariant
@@ -412,7 +462,7 @@ private fun NudgeRow(member: TribeMember) {
     var nudged by remember { mutableStateOf(false) }
 
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
         Row(
@@ -482,6 +532,54 @@ private fun SectionHeader(title: String, modifier: Modifier = Modifier) {
         letterSpacing = 0.5.sp,
         modifier      = modifier
     )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Shimmer skeleton
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun SocialShimmer(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .statusBarsPadding()
+    ) {
+        Spacer(Modifier.height(20.dp))
+        ScreenHeader("SOCIAL")
+        Spacer(Modifier.height(12.dp))
+        ShimmerCard(
+            modifier = Modifier.padding(horizontal = 15.dp),
+            height = 160.dp
+        )
+        Spacer(Modifier.height(20.dp))
+        ShimmerLine(
+            width = 100.dp,
+            height = 14.dp,
+            modifier = Modifier.padding(horizontal = 20.dp)
+        )
+        Spacer(Modifier.height(12.dp))
+        ShimmerCard(
+            modifier = Modifier.padding(horizontal = 20.dp),
+            height = 52.dp
+        )
+        Spacer(Modifier.height(8.dp))
+        ShimmerCard(
+            modifier = Modifier.padding(horizontal = 20.dp),
+            height = 52.dp
+        )
+        Spacer(Modifier.height(24.dp))
+        ShimmerLine(
+            width = 100.dp,
+            height = 14.dp,
+            modifier = Modifier.padding(horizontal = 20.dp)
+        )
+        Spacer(Modifier.height(12.dp))
+        repeat(5) {
+            ShimmerLeaderboardRow(modifier = Modifier.padding(horizontal = 20.dp))
+        }
+        Spacer(Modifier.height(120.dp))
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

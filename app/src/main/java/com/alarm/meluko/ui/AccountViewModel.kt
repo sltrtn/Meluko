@@ -1,10 +1,14 @@
 package com.alarm.meluko.ui
 
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.alarm.meluko.data.FirestoreCollection
+import com.alarm.meluko.data.FirestoreField
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.storage.FirebaseStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -21,6 +25,9 @@ class AccountViewModel @Inject constructor() : ViewModel() {
     private val auth = FirebaseAuth.getInstance()
     private val storage = FirebaseStorage.getInstance()
     private val uid get() = auth.currentUser?.uid ?: ""
+
+    private val _isLoaded = MutableStateFlow(false)
+    val isLoaded = _isLoaded.asStateFlow()
 
     private val _displayName = MutableStateFlow("")
     val displayName = _displayName.asStateFlow()
@@ -52,35 +59,75 @@ class AccountViewModel @Inject constructor() : ViewModel() {
     private val _notificationsEnabled = MutableStateFlow(true)
     val notificationsEnabled = _notificationsEnabled.asStateFlow()
 
+    private val _alarmToneUri = MutableStateFlow<String?>(null)
+    val alarmToneUri = _alarmToneUri.asStateFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error = _error.asStateFlow()
+
+    private var userDocRegistration: ListenerRegistration? = null
+    private var userAlarmRegistration: ListenerRegistration? = null
+    private var memberRegistration: ListenerRegistration? = null
+
     init {
         if (uid.isNotEmpty()) loadUserData()
     }
 
     private fun loadUserData() {
-        db.collection("users").document(uid)
-            .addSnapshotListener { snap, _ ->
+        userDocRegistration?.remove()
+        userDocRegistration = db.collection(FirestoreCollection.USERS).document(uid)
+            .addSnapshotListener { snap, error ->
+                if (error != null) {
+                    Log.w("AccountVM", "User doc listener error", error)
+                    _error.value = "Failed to load profile"
+                    _isLoaded.value = true
+                    return@addSnapshotListener
+                }
                 if (snap != null && snap.exists()) {
-                    _displayName.value = snap.getString("displayName") ?: ""
-                    _username.value = snap.getString("username") ?: ""
-                    _bio.value = snap.getString("bio") ?: ""
-                    _photoUrl.value = snap.getString("photoUrl")
+                    _isLoaded.value = true
+                    _displayName.value = snap.getString(FirestoreField.DISPLAY_NAME) ?: ""
+                    _username.value = snap.getString(FirestoreField.USERNAME) ?: ""
+                    _bio.value = snap.getString(FirestoreField.BIO) ?: ""
+                    _photoUrl.value = snap.getString(FirestoreField.PHOTO_URL)
                     _notificationsEnabled.value = snap.getBoolean("notificationsEnabled") ?: true
+                }
+                if (snap != null && !snap.exists()) {
+                    _isLoaded.value = true
                 }
             }
 
-        db.collection("user_alarms").document(uid).addSnapshotListener { userAlarmSnap, _ ->
-            val primaryTribeId = userAlarmSnap?.getString("primaryTribeId")
-            if (primaryTribeId != null) {
-                db.collection("tribes").document(primaryTribeId).collection("members").document(uid)
-                    .addSnapshotListener { snap, _ ->
-                        if (snap != null && snap.exists()) {
-                            _streakDays.value = snap.getLong("streakDays")?.toInt() ?: 0
-                            _bestStreak.value = snap.getLong("bestStreak")?.toInt() ?: 0
-                            _totalWakes.value = snap.getLong("totalWakes")?.toInt() ?: 0
+        userAlarmRegistration?.remove()
+        userAlarmRegistration = db.collection(FirestoreCollection.USER_ALARMS).document(uid)
+            .addSnapshotListener { userAlarmSnap, error ->
+                if (error != null) {
+                    Log.w("AccountVM", "User alarm listener error", error)
+                    _error.value = "Failed to load alarm data"
+                    return@addSnapshotListener
+                }
+                val primaryTribeId = userAlarmSnap?.getString(FirestoreField.PRIMARY_TRIBE_ID)
+                _alarmToneUri.value = userAlarmSnap?.getString(FirestoreField.ALARM_TONE_URI)
+                if (primaryTribeId != null) {
+                    memberRegistration?.remove()
+                    memberRegistration = db.collection(FirestoreCollection.TRIBES).document(primaryTribeId)
+                        .collection(FirestoreCollection.MEMBERS).document(uid)
+                        .addSnapshotListener { snap, memberError ->
+                            if (memberError != null) {
+                                Log.w("AccountVM", "Member listener error", memberError)
+                                _error.value = "Failed to load stats"
+                                return@addSnapshotListener
+                            }
+                            if (snap != null && snap.exists()) {
+                                _streakDays.value = snap.getLong(FirestoreField.STREAK_DAYS)?.toInt() ?: 0
+                                _bestStreak.value = snap.getLong(FirestoreField.BEST_STREAK)?.toInt() ?: 0
+                                _totalWakes.value = snap.getLong(FirestoreField.TOTAL_WAKES)?.toInt() ?: 0
+                            }
                         }
-                    }
+                }
             }
-        }
+    }
+
+    fun clearError() {
+        _error.value = null
     }
 
     fun updateProfile(
@@ -102,27 +149,27 @@ class AccountViewModel @Inject constructor() : ViewModel() {
                 }
 
                 val updateMap = mutableMapOf<String, Any?>(
-                    "displayName" to newDisplayName.trim(),
-                    "bio" to newBio.trim()
+                    FirestoreField.DISPLAY_NAME to newDisplayName.trim(),
+                    FirestoreField.BIO to newBio.trim()
                 )
-                if (uploadedPhotoUrl != null) updateMap["photoUrl"] = uploadedPhotoUrl
+                if (uploadedPhotoUrl != null) updateMap[FirestoreField.PHOTO_URL] = uploadedPhotoUrl
 
-                db.collection("users").document(uid)
+                db.collection(FirestoreCollection.USERS).document(uid)
                     .set(updateMap, SetOptions.merge()).await()
 
-                // Denormalize displayName and photoUrl into tribe member doc
-                val tribeSnap = db.collection("user_alarms").document(uid).get().await()
-                val primaryTribeId = tribeSnap.getString("primaryTribeId")
+                val tribeSnap = db.collection(FirestoreCollection.USER_ALARMS).document(uid).get().await()
+                val primaryTribeId = tribeSnap.getString(FirestoreField.PRIMARY_TRIBE_ID)
                 if (primaryTribeId != null) {
-                    val memberUpdate = mutableMapOf<String, Any?>("displayName" to newDisplayName.trim())
-                    if (uploadedPhotoUrl != null) memberUpdate["photoUrl"] = uploadedPhotoUrl
-                    db.collection("tribes").document(primaryTribeId)
-                        .collection("members").document(uid)
+                    val memberUpdate = mutableMapOf<String, Any?>(FirestoreField.DISPLAY_NAME to newDisplayName.trim())
+                    if (uploadedPhotoUrl != null) memberUpdate[FirestoreField.PHOTO_URL] = uploadedPhotoUrl
+                    db.collection(FirestoreCollection.TRIBES).document(primaryTribeId)
+                        .collection(FirestoreCollection.MEMBERS).document(uid)
                         .update(memberUpdate as Map<String, Any?>).await()
                 }
 
                 onSuccess()
             } catch (e: Exception) {
+                Log.w("AccountVM", "Profile update failed", e)
                 _updateError.value = "Update failed: ${e.message}"
             } finally {
                 _isUpdating.value = false
@@ -134,12 +181,34 @@ class AccountViewModel @Inject constructor() : ViewModel() {
         if (uid.isEmpty()) return
         viewModelScope.launch {
             try {
-                db.collection("users").document(uid)
+                db.collection(FirestoreCollection.USERS).document(uid)
                     .update("notificationsEnabled", enabled).await()
                 _notificationsEnabled.value = enabled
             } catch (e: Exception) {
-                // fail silently — not critical
+                Log.w("AccountVM", "Notification prefs update failed", e)
+                _error.value = "Failed to update notification settings"
             }
         }
+    }
+
+    fun updateAlarmTone(toneUri: String?) {
+        if (uid.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                db.collection(FirestoreCollection.USER_ALARMS).document(uid)
+                    .update(FirestoreField.ALARM_TONE_URI, toneUri).await()
+                _alarmToneUri.value = toneUri
+            } catch (e: Exception) {
+                Log.w("AccountVM", "Alarm tone update failed", e)
+                _error.value = "Failed to update alarm tone"
+            }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        userDocRegistration?.remove()
+        userAlarmRegistration?.remove()
+        memberRegistration?.remove()
     }
 }

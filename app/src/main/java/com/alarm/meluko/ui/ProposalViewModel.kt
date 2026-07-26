@@ -1,7 +1,10 @@
 package com.alarm.meluko.ui
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.alarm.meluko.data.FirestoreCollection
+import com.alarm.meluko.data.FirestoreField
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FieldValue
@@ -21,7 +24,7 @@ data class AlarmProposal(
     val proposedBy: String,
     val proposedByName: String,
     val proposedTime: String,
-    val status: String, // "pending", "accepted", "vetoed"
+    val status: String,
     val vetoedBy: List<String>,
     val vetoCount: Int,
     val createdAt: Date?,
@@ -47,135 +50,149 @@ class ProposalViewModel @Inject constructor() : ViewModel() {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    private var proposalListener: ListenerRegistration? = null
+    private var isAccepting = false
 
-    /**
-     * Start listening to the active proposal for a given tribe.
-     * Only shows pending proposals. Expired non-vetoed proposals are auto-accepted.
-     */
+    fun clearError() { _error.value = null }
+
+    private var proposalListener: ListenerRegistration? = null
+    private var memberDocListener: ListenerRegistration? = null
+
     fun listenToTribeProposals(tribeId: String) {
         proposalListener?.remove()
-        proposalListener = db.collection("tribes").document(tribeId)
-            .collection("proposals")
-            .whereEqualTo("status", "pending")
-            .addSnapshotListener { snap, _ ->
+        memberDocListener?.remove()
+
+        proposalListener = db.collection(FirestoreCollection.TRIBES).document(tribeId)
+            .collection(FirestoreCollection.PROPOSALS)
+            .addSnapshotListener { snap, error ->
+                if (error != null) {
+                    Log.w("ProposalVM", "Proposal listener error", error)
+                    _error.value = "Failed to load proposals: ${error.message}"
+                    return@addSnapshotListener
+                }
                 if (snap == null || snap.isEmpty) {
                     _activeProposal.value = null
                     return@addSnapshotListener
                 }
-                // Take the most recent pending proposal
-                val doc = snap.documents.maxByOrNull {
-                    it.getDate("createdAt")?.time ?: 0L
+
+                val pending = snap.documents.filter {
+                    it.getString(FirestoreField.STATUS) == "pending"
+                }
+                if (pending.isEmpty()) {
+                    _activeProposal.value = null
+                    return@addSnapshotListener
+                }
+
+                val doc = pending.maxByOrNull {
+                    it.getDate(FirestoreField.CREATED_AT)?.time ?: 0L
                 } ?: return@addSnapshotListener
 
-                val expiresAt = doc.getDate("expiresAt")
+                val expiresAt = doc.getDate(FirestoreField.EXPIRES_AT)
                 val now = Date()
 
-                // If the proposal has expired and wasn't vetoed, auto-accept it
                 if (expiresAt != null && now.after(expiresAt)) {
-                    viewModelScope.launch {
-                        acceptProposal(
-                            tribeId = tribeId,
-                            proposalId = doc.id,
-                            proposedTime = doc.getString("proposedTime") ?: return@launch
-                        )
+                    if (!isAccepting) {
+                        isAccepting = true
+                        viewModelScope.launch {
+                            acceptProposal(
+                                tribeId = tribeId,
+                                proposalId = doc.id,
+                                proposedTime = doc.getString(FirestoreField.PROPOSED_TIME) ?: return@launch
+                            )
+                            isAccepting = false
+                        }
                     }
                     return@addSnapshotListener
                 }
 
                 _activeProposal.value = AlarmProposal(
                     id = doc.id,
-                    proposedBy = doc.getString("proposedBy") ?: "",
-                    proposedByName = doc.getString("proposedByName") ?: "Someone",
-                    proposedTime = doc.getString("proposedTime") ?: "--:--",
-                    status = doc.getString("status") ?: "pending",
-                    vetoedBy = (doc.get("vetoedBy") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
-                    vetoCount = doc.getLong("vetoCount")?.toInt() ?: 0,
-                    createdAt = doc.getDate("createdAt"),
+                    proposedBy = doc.getString(FirestoreField.PROPOSED_BY) ?: "",
+                    proposedByName = doc.getString(FirestoreField.PROPOSED_BY_NAME) ?: "Someone",
+                    proposedTime = doc.getString(FirestoreField.PROPOSED_TIME) ?: "--:--",
+                    status = doc.getString(FirestoreField.STATUS) ?: "pending",
+                    vetoedBy = (doc.get(FirestoreField.VETOED_BY) as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+                    vetoCount = doc.getLong(FirestoreField.VETO_COUNT)?.toInt() ?: 0,
+                    createdAt = doc.getDate(FirestoreField.CREATED_AT),
                     expiresAt = expiresAt
                 )
             }
 
-        // Also load the user's veto count for this tribe
-        db.collection("tribes").document(tribeId).collection("members").document(uid)
-            .addSnapshotListener { snap, _ ->
-                _vetoesUsed.value = snap?.getLong("vetoesUsed")?.toInt() ?: 0
-            }
+        if (uid.isNotEmpty()) {
+            memberDocListener = db.collection(FirestoreCollection.TRIBES).document(tribeId)
+                .collection(FirestoreCollection.MEMBERS).document(uid)
+                .addSnapshotListener { snap, error ->
+                    if (error != null) {
+                        Log.w("ProposalVM", "Member doc listener error", error)
+                        return@addSnapshotListener
+                    }
+                    _vetoesUsed.value = snap?.getLong(FirestoreField.VETOES_USED)?.toInt() ?: 0
+                }
+        }
     }
 
-    /**
-     * Create a new proposal to change the tribe's alarm time.
-     * Creates a proposals sub-document with a 2-hour veto window.
-     */
-    fun createProposal(tribeId: String, proposedTime: String, onSuccess: () -> Unit) {
+    fun createProposal(tribeId: String, proposedTime: String, onSuccess: () -> Unit, onError: (() -> Unit)? = null) {
         if (uid.isEmpty()) return
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             try {
-                val userDoc = db.collection("users").document(uid).get().await()
-                val displayName = userDoc.getString("displayName") ?: "A tribe member"
+                val userDoc = db.collection(FirestoreCollection.USERS).document(uid).get().await()
+                val displayName = userDoc.getString(FirestoreField.DISPLAY_NAME) ?: "A tribe member"
 
                 val proposalId = UUID.randomUUID().toString()
                 val now = Date()
-                // Veto window: 2 hours
                 val expiresAt = Date(now.time + (2 * 60 * 60 * 1000L))
 
-                db.collection("tribes").document(tribeId)
-                    .collection("proposals").document(proposalId)
+                db.collection(FirestoreCollection.TRIBES).document(tribeId)
+                    .collection(FirestoreCollection.PROPOSALS).document(proposalId)
                     .set(
                         mapOf(
-                            "proposedBy" to uid,
-                            "proposedByName" to displayName,
-                            "proposedTime" to proposedTime,
-                            "status" to "pending",
-                            "vetoedBy" to emptyList<String>(),
-                            "vetoCount" to 0,
-                            "createdAt" to FieldValue.serverTimestamp(),
-                            "expiresAt" to expiresAt
+                            FirestoreField.PROPOSED_BY to uid,
+                            FirestoreField.PROPOSED_BY_NAME to displayName,
+                            FirestoreField.PROPOSED_TIME to proposedTime,
+                            FirestoreField.STATUS to "pending",
+                            FirestoreField.VETOED_BY to emptyList<String>(),
+                            FirestoreField.VETO_COUNT to 0,
+                            FirestoreField.CREATED_AT to FieldValue.serverTimestamp(),
+                            FirestoreField.EXPIRES_AT to expiresAt
                         )
                     ).await()
 
                 onSuccess()
             } catch (e: Exception) {
+                Log.w("ProposalVM", "Create proposal failed", e)
                 _error.value = "Failed to propose: ${e.message}"
+                onError?.invoke()
             } finally {
                 _isLoading.value = false
             }
         }
     }
 
-    /**
-     * Cast a veto against the active proposal.
-     * - Adds uid to vetoedBy list
-     * - Increments the user's vetoesUsed count in the member doc
-     * - Sets proposal status to "vetoed" immediately (1 veto kills the proposal)
-     */
     fun castVeto(tribeId: String, proposalId: String, onSuccess: () -> Unit) {
         if (uid.isEmpty()) return
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             try {
-                // Mark the proposal as vetoed
-                db.collection("tribes").document(tribeId)
-                    .collection("proposals").document(proposalId)
+                db.collection(FirestoreCollection.TRIBES).document(tribeId)
+                    .collection(FirestoreCollection.PROPOSALS).document(proposalId)
                     .update(
                         mapOf(
-                            "status" to "vetoed",
-                            "vetoedBy" to FieldValue.arrayUnion(uid),
-                            "vetoCount" to FieldValue.increment(1)
+                            FirestoreField.STATUS to "vetoed",
+                            FirestoreField.VETOED_BY to FieldValue.arrayUnion(uid),
+                            FirestoreField.VETO_COUNT to FieldValue.increment(1)
                         )
                     ).await()
 
-                // Increment the user's vetoesUsed count (max 2 lifetime per tribe)
-                db.collection("tribes").document(tribeId)
-                    .collection("members").document(uid)
-                    .update("vetoesUsed", FieldValue.increment(1)).await()
+                db.collection(FirestoreCollection.TRIBES).document(tribeId)
+                    .collection(FirestoreCollection.MEMBERS).document(uid)
+                    .update(FirestoreField.VETOES_USED, FieldValue.increment(1)).await()
 
                 _activeProposal.value = null
                 onSuccess()
             } catch (e: Exception) {
+                Log.w("ProposalVM", "Veto failed", e)
                 _error.value = "Failed to veto: ${e.message}"
             } finally {
                 _isLoading.value = false
@@ -183,43 +200,39 @@ class ProposalViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    /**
-     * Accept a proposal — updates tribe alarmTime and all member user_alarms.
-     * Called automatically when the veto window expires with no veto.
-     */
     private suspend fun acceptProposal(tribeId: String, proposalId: String, proposedTime: String) {
         try {
-            val members = db.collection("tribes").document(tribeId)
-                .collection("members").get().await()
-
             val batch = db.batch()
 
             batch.update(
-                db.collection("tribes").document(tribeId)
-                    .collection("proposals").document(proposalId),
-                "status", "accepted"
+                db.collection(FirestoreCollection.TRIBES).document(tribeId)
+                    .collection(FirestoreCollection.PROPOSALS).document(proposalId),
+                FirestoreField.STATUS, "accepted"
             )
 
             batch.update(
-                db.collection("tribes").document(tribeId),
-                "alarmTime", proposedTime
+                db.collection(FirestoreCollection.TRIBES).document(tribeId),
+                FirestoreField.ALARM_TIME, proposedTime
             )
 
-            for (member in members.documents) {
+            if (uid.isNotEmpty()) {
                 batch.update(
-                    db.collection("user_alarms").document(member.id),
-                    "followedAlarmTime", proposedTime
+                    db.collection(FirestoreCollection.USER_ALARMS).document(uid),
+                    FirestoreField.FOLLOWED_ALARM_TIME, proposedTime
                 )
             }
 
             batch.commit().await()
             _activeProposal.value = null
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w("ProposalVM", "Accept proposal failed", e)
+            _error.value = "Failed to accept proposal: ${e.message}"
         }
     }
 
     override fun onCleared() {
         super.onCleared()
         proposalListener?.remove()
+        memberDocListener?.remove()
     }
 }

@@ -5,21 +5,30 @@ import android.content.Context
 import android.graphics.Color
 import android.media.Ringtone
 import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.view.WindowManager
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import com.alarm.meluko.data.FirestoreCollection
+import com.alarm.meluko.data.FirestoreField
 import com.alarm.meluko.ui.AlarmScreen
 import com.alarm.meluko.ui.theme.MelukoTheme
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -43,10 +52,8 @@ class AlarmActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Set window background to black before anything else to eliminate white flash
         window.decorView.setBackgroundColor(Color.BLACK)
 
-        // Show over lock screen
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
@@ -59,9 +66,13 @@ class AlarmActivity : ComponentActivity() {
             )
         }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        enableEdgeToEdge()
 
-        // Start audio
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowInsetsControllerCompat(window, window.decorView).apply {
+            hide(WindowInsetsCompat.Type.systemBars())
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+
         val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
             ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
         ringtone = RingtoneManager.getRingtone(this, alarmUri)
@@ -70,7 +81,32 @@ class AlarmActivity : ComponentActivity() {
         }
         ringtone?.play()
 
-        // Start vibration
+        val uid = firebaseAuth.currentUser?.uid
+        if (uid != null) {
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val doc = firebaseFirestore.collection(FirestoreCollection.USER_ALARMS)
+                        .document(uid).get().await()
+                    val customUri = doc.getString(FirestoreField.ALARM_TONE_URI)
+                    if (customUri != null) {
+                        val customRingtone = RingtoneManager.getRingtone(this@AlarmActivity, Uri.parse(customUri))
+                        if (customRingtone != null) {
+                            runOnUiThread {
+                                ringtone?.stop()
+                                ringtone = customRingtone
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                                    ringtone?.isLooping = true
+                                }
+                                ringtone?.play()
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w("AlarmActivity", "Failed to load custom tone", e)
+                }
+            }
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val vm = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
             vibrator = vm.defaultVibrator
@@ -113,25 +149,25 @@ class AlarmActivity : ComponentActivity() {
             cal.add(Calendar.DAY_OF_YEAR, -1)
             val yesterday = dateFormat.format(cal.time)
 
-            firebaseFirestore.collection("user_alarms").document(uid).get()
+            firebaseFirestore.collection(FirestoreCollection.USER_ALARMS).document(uid).get()
                 .addOnSuccessListener { userAlarmDoc ->
-                    val tribeId = userAlarmDoc.getString("primaryTribeId")
+                    val tribeId = userAlarmDoc.getString(FirestoreField.PRIMARY_TRIBE_ID)
                     if (tribeId != null) {
-                        val memberRef = firebaseFirestore.collection("tribes").document(tribeId)
-                            .collection("members").document(uid)
+                        val memberRef = firebaseFirestore.collection(FirestoreCollection.TRIBES).document(tribeId)
+                            .collection(FirestoreCollection.MEMBERS).document(uid)
 
                         memberRef.get().addOnSuccessListener { memberDoc ->
                             val lastWakeDate = memberDoc.getString("lastWakeDate")
-                            val currentStatus = memberDoc.getString("todayStatus") ?: "sleeping"
+                            val currentStatus = memberDoc.getString(FirestoreField.TODAY_STATUS) ?: "sleeping"
 
                             if (currentStatus == "awake") {
                                 finish()
                                 return@addOnSuccessListener
                             }
 
-                            val currentStreak = memberDoc.getLong("streakDays")?.toInt() ?: 0
-                            val currentBestStreak = memberDoc.getLong("bestStreak")?.toInt() ?: 0
-                            val currentTotalWakes = memberDoc.getLong("totalWakes")?.toInt() ?: 0
+                            val currentStreak = memberDoc.getLong(FirestoreField.STREAK_DAYS)?.toInt() ?: 0
+                            val currentBestStreak = memberDoc.getLong(FirestoreField.BEST_STREAK)?.toInt() ?: 0
+                            val currentTotalWakes = memberDoc.getLong(FirestoreField.TOTAL_WAKES)?.toInt() ?: 0
 
                             val newStreak = if (lastWakeDate == yesterday) currentStreak + 1 else 1
                             val newBestStreak = max(newStreak, currentBestStreak)
@@ -139,42 +175,32 @@ class AlarmActivity : ComponentActivity() {
 
                             memberRef.update(
                                 mapOf(
-                                    "todayStatus" to "awake",
-                                    "todayWakeTime" to wakeTime,
-                                    "streakDays" to newStreak,
-                                    "bestStreak" to newBestStreak,
-                                    "totalWakes" to newTotalWakes,
+                                    FirestoreField.TODAY_STATUS to "awake",
+                                    FirestoreField.TODAY_WAKE_TIME to wakeTime,
+                                    FirestoreField.STREAK_DAYS to newStreak,
+                                    FirestoreField.BEST_STREAK to newBestStreak,
+                                    FirestoreField.TOTAL_WAKES to newTotalWakes,
                                     "lastWakeDate" to today
                                 )
                             ).addOnCompleteListener {
-                                rescheduleAlarmForTomorrow(alarmTime, userAlarmDoc)
+                                // Alarm already rescheduled in AlarmReceiver.onReceive
+                                // when it fired — no need to reschedule again here.
                                 finish()
                             }
-                        }.addOnFailureListener { finish() }
+                        }.addOnFailureListener {
+                            Log.w("AlarmActivity", "Member doc read failed", it)
+                            finish()
+                        }
                     } else {
                         finish()
                     }
                 }
-                .addOnFailureListener { finish() }
+                .addOnFailureListener {
+                    Log.w("AlarmActivity", "User alarm doc read failed", it)
+                    finish()
+                }
         } else {
             finish()
-        }
-    }
-
-    private fun rescheduleAlarmForTomorrow(
-        alarmTime: String,
-        userAlarmDoc: com.google.firebase.firestore.DocumentSnapshot
-    ) {
-        val isActive = userAlarmDoc.getBoolean("active") ?: true
-        if (!isActive) return
-
-        try {
-            val parts = alarmTime.split(":")
-            if (parts.size != 2) return
-            val hour = parts[0].toIntOrNull() ?: return
-            val minute = parts[1].toIntOrNull() ?: return
-            AlarmScheduler(applicationContext).schedule(hour, minute)
-        } catch (_: Exception) {
         }
     }
 

@@ -45,6 +45,7 @@ firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.r
 firebase-auth-ktx = { group = "com.google.firebase", name = "firebase-auth-ktx" }
 firebase-firestore-ktx = { group = "com.google.firebase", name = "firebase-firestore-ktx" }
 firebase-storage-ktx = { group = "com.google.firebase", name = "firebase-storage-ktx" }
+firebase-crashlytics-ktx = { group = "com.google.firebase", name = "firebase-crashlytics-ktx" }
 # Hilt
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
 hilt-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt" }
@@ -67,4 +68,6 @@ ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 # Google Services (needed for firebase-auth to init)
 google-services = { id = "com.google.gms.google-services", version = "4.4.4" }
+# Firebase Crashlytics
+firebase-crashlytics = { id = "com.google.firebase.crashlytics", version = "3.0.4" }
 

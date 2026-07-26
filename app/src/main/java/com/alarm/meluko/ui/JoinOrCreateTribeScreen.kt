@@ -137,14 +137,17 @@ fun JoinOrCreateTribeScreen(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(12.dp),
                             color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                            onClick = { isJoining = joining }
+                            onClick = {
+                                isJoining = joining
+                                viewModel.clearError()
+                            }
                         ) {
-                            Text(
-                                text = label,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = DefaultFontFamily,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    Text(
+                        text = label,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = BodyFontFamily,
+                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.padding(vertical = 10.dp)
                             )
@@ -195,7 +198,7 @@ fun JoinOrCreateTribeScreen(
                         Column {
                             OutlinedTextField(
                                 value = tribeName,
-                                onValueChange = { tribeName = it },
+                                onValueChange = { if (it.length <= 30) tribeName = it },
                                 label = { Text("Tribe Name") },
                                 leadingIcon = {
                                     Icon(Icons.Rounded.People, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)

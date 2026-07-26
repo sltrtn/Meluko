@@ -64,6 +64,17 @@
             android:name=".alarm.AlarmReceiver"
             android:exported="false" />
 
+        <!-- Boot receiver — reschedules alarm after device reboot
+             exported="true": system sends BOOT_COMPLETED to all receivers
+        -->
+        <receiver
+            android:name=".alarm.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

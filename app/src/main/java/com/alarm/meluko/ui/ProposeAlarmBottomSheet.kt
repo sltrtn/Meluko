@@ -1,5 +1,14 @@
 package com.alarm.meluko.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
@@ -7,6 +16,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,22 +29,31 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.alarm.meluko.ui.theme.DefaultFontFamily
-import com.alarm.meluko.ui.theme.MelukoTheme
-import kotlinx.coroutines.launch
+import com.alarm.meluko.ui.theme.BodyFontFamily
+import kotlinx.coroutines.delay
+
+private enum class ProposeState { Idle, Sending, Success }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProposeAlarmBottomSheet(
     tribeId: String,
     proposalViewModel: ProposalViewModel,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val isLoading by proposalViewModel.isLoading.collectAsState()
+    var proposeState by remember { mutableStateOf(ProposeState.Idle) }
+
+    LaunchedEffect(proposeState) {
+        if (proposeState == ProposeState.Success) {
+            delay(1500L)
+            onDismiss()
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -48,101 +68,161 @@ fun ProposeAlarmBottomSheet(
                 .padding(bottom = 48.dp, top = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text       = "PROPOSE TIME",
-                fontSize   = 14.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = DefaultFontFamily,
-                letterSpacing = 4.sp,
-                color      = MaterialTheme.colorScheme.primary
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text       = "The tribe will vote on this change.",
-                fontSize   = 12.sp,
-                fontFamily = DefaultFontFamily,
-                color      = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(Modifier.height(48.dp))
-
-            var selectedHour by remember { mutableStateOf("07") }
-            var selectedMinute by remember { mutableStateOf("30") }
-            var selectedAmPm by remember { mutableStateOf("AM") }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(340.dp)
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                WheelPicker(
-                    items = (1..12).map { it.toString().padStart(2, '0') },
-                    initialIndex = 6,
-                    onItemSelected = { selectedHour = it }
+            if (proposeState == ProposeState.Success) {
+                val pulseTransition = rememberInfiniteTransition(label = "pulse")
+                val pulseScale by pulseTransition.animateFloat(
+                    initialValue = 0.92f,
+                    targetValue = 1.08f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(800, easing = LinearEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "pulseScale"
                 )
-
+                Spacer(Modifier.height(40.dp))
+                AnimatedVisibility(
+                    visible = true,
+                    enter = scaleIn(
+                        initialScale = 0f,
+                        animationSpec = MotionSpec.touch
+                    ) + fadeIn()
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.CheckCircle,
+                        contentDescription = null,
+                        tint = Color(0xFF4CAF50),
+                        modifier = Modifier
+                            .size(80.dp)
+                            .graphicsLayer { scaleX = pulseScale; scaleY = pulseScale }
+                    )
+                }
+                Spacer(Modifier.height(24.dp))
                 Text(
-                    text = ":",
-                    fontSize = 64.sp,
+                    text = "PROPOSAL SENT!",
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.Black,
                     fontFamily = DefaultFontFamily,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(horizontal = 8.dp).offset(y = (-4).dp)
+                    letterSpacing = 3.sp,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "The tribe has 2 hours to veto.\nCheck back to see the result.",
+                    fontSize = 13.sp,
+                    fontFamily = BodyFontFamily,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 18.sp,
+                    modifier = Modifier.padding(horizontal = 32.dp)
+                )
+                Spacer(Modifier.height(40.dp))
+            } else {
+                Text(
+                    text       = "PROPOSE TIME",
+                    fontSize   = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = DefaultFontFamily,
+                    letterSpacing = 4.sp,
+                    color      = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text       = "The tribe will vote on this change.",
+                    fontSize   = 12.sp,
+                    fontFamily = BodyFontFamily,
+                    color      = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                WheelPicker(
-                    items = (0..59).map { it.toString().padStart(2, '0') },
-                    initialIndex = 30,
-                    onItemSelected = { selectedMinute = it }
-                )
+                Spacer(Modifier.height(48.dp))
 
-                Spacer(Modifier.width(16.dp))
+                var selectedHour by remember { mutableStateOf("07") }
+                var selectedMinute by remember { mutableStateOf("30") }
+                var selectedAmPm by remember { mutableStateOf("AM") }
 
-                WheelPicker(
-                    items = listOf("AM", "PM"),
-                    initialIndex = 0,
-                    onItemSelected = { selectedAmPm = it }
-                )
-            }
-
-            Spacer(Modifier.height(48.dp))
-
-            Button(
-                onClick = {
-                    proposalViewModel.createProposal(
-                        tribeId = tribeId,
-                        proposedTime = "$selectedHour:$selectedMinute $selectedAmPm",
-                        onSuccess = onDismiss
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(340.dp)
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    WheelPicker(
+                        items = (1..12).map { it.toString().padStart(2, '0') },
+                        initialIndex = 6,
+                        onItemSelected = { selectedHour = it }
                     )
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 32.dp)
-                    .height(64.dp),
-                shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                ),
-                enabled = !isLoading
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.dp
-                    )
-                } else {
+
                     Text(
-                        text       = "SEND PROPOSAL",
-                        fontSize   = 16.sp,
+                        text = ":",
+                        fontSize = 64.sp,
                         fontWeight = FontWeight.Black,
                         fontFamily = DefaultFontFamily,
-                        letterSpacing = 2.sp,
-                        color      = MaterialTheme.colorScheme.onPrimary
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(horizontal = 8.dp).offset(y = (-4).dp)
                     )
+
+                    WheelPicker(
+                        items = (0..59).map { it.toString().padStart(2, '0') },
+                        initialIndex = 30,
+                        onItemSelected = { selectedMinute = it }
+                    )
+
+                    Spacer(Modifier.width(16.dp))
+
+                    WheelPicker(
+                        items = listOf("AM", "PM"),
+                        initialIndex = 0,
+                        onItemSelected = { selectedAmPm = it }
+                    )
+                }
+
+                Spacer(Modifier.height(48.dp))
+
+                Button(
+                    onClick = {
+                        proposeState = ProposeState.Sending
+                        val hour24 = when {
+                            selectedAmPm == "AM" && selectedHour == "12" -> "00"
+                            selectedAmPm == "PM" && selectedHour != "12" -> {
+                                val h = selectedHour.toIntOrNull() ?: 7
+                                "%02d".format(h + 12)
+                            }
+                            else -> selectedHour.padStart(2, '0')
+                        }
+                        proposalViewModel.createProposal(
+                            tribeId = tribeId,
+                            proposedTime = "$hour24:$selectedMinute",
+                            onSuccess = { proposeState = ProposeState.Success },
+                            onError = { proposeState = ProposeState.Idle }
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 32.dp)
+                        .height(64.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ),
+                    enabled = proposeState == ProposeState.Idle
+                ) {
+                    if (proposeState == ProposeState.Sending) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(
+                            text       = "SEND PROPOSAL",
+                            fontSize   = 16.sp,
+                            fontWeight = FontWeight.Black,
+                            fontFamily = DefaultFontFamily,
+                            letterSpacing = 2.sp,
+                            color      = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
                 }
             }
         }
@@ -250,16 +330,5 @@ fun WheelPicker(
                 )
             )
         )
-    }
-}
-
-@Preview
-@Composable
-private fun ProposeAlarmBottomSheetPreview() {
-    MelukoTheme {
-        Scaffold { padding ->
-            Box(Modifier.padding(padding).fillMaxSize().background(Color.Black)) {
-            }
-        }
     }
 }

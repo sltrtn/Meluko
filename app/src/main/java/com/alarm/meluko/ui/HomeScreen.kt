@@ -25,22 +25,28 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import android.os.Build
 import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.alarm.meluko.ui.theme.DefaultFontFamily
+import com.alarm.meluko.BuildConfig
+import com.alarm.meluko.alarm.AlarmScheduler
 import com.alarm.meluko.ui.theme.BodyFontFamily
+import com.alarm.meluko.ui.theme.DefaultFontFamily
 import com.alarm.meluko.ui.theme.MelukoTheme
 import kotlinx.coroutines.delay
 import java.util.*
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Data model — will be replaced with Firestore later
+//  Data model
 // ─────────────────────────────────────────────────────────────────────────────
 data class TribeInfo(
+    val id: String,
     val name: String,
     val photoUrl: String?,
     val memberCount: Int
@@ -56,6 +62,7 @@ fun HomeScreen(
     socialViewModel: SocialViewModel = hiltViewModel(),
     proposalViewModel: ProposalViewModel = hiltViewModel()
 ) {
+    val isLoading by homeViewModel.isLoading.collectAsState()
     val nextAlarmTime by homeViewModel.nextAlarmTime.collectAsState()
     val isAlarmRinging by homeViewModel.isAlarmRinging.collectAsState()
     val primaryTribeId by homeViewModel.primaryTribeId.collectAsState()
@@ -65,7 +72,25 @@ fun HomeScreen(
     val tribesProgress by socialViewModel.tribes.collectAsState()
 
     val activeTribes = tribesProgress.map {
-        TribeInfo(it.name, it.photoUrl, it.totalCount)
+        TribeInfo(it.id, it.name, it.photoUrl, it.totalCount)
+    }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val proposalError by proposalViewModel.error.collectAsState()
+    val homeError by homeViewModel.error.collectAsState()
+
+    LaunchedEffect(proposalError) {
+        proposalError?.let {
+            snackbarHostState.showSnackbar(it)
+            proposalViewModel.clearError()
+        }
+    }
+
+    LaunchedEffect(homeError) {
+        homeError?.let {
+            snackbarHostState.showSnackbar(it)
+            homeViewModel.clearError()
+        }
     }
 
     var showProposeSheet by remember { mutableStateOf(false) }
@@ -79,7 +104,10 @@ fun HomeScreen(
     }
 
     HomeScreenContent(
+        isLoading      = isLoading,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         nextAlarmTime  = nextAlarmTime,
+        hasTribe       = primaryTribeId != null,
         activeTribes   = activeTribes,
         isAlarmRinging = isAlarmRinging,
         streakDays     = streakDays,
@@ -97,9 +125,12 @@ fun HomeScreen(
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 fun HomeScreenContent(
+    isLoading:      Boolean = false,
     nextAlarmTime:  String,
+    hasTribe:       Boolean,
     activeTribes:   List<TribeInfo>,
     isAlarmRinging: Boolean,
+    snackbarHost:   @Composable () -> Unit = {},
     streakDays:     Int = 0,
     totalWakes:     Int = 0,
     rank:           Int = 1,
@@ -108,39 +139,46 @@ fun HomeScreenContent(
     onTribeClick:   (String) -> Unit,
     onProposeClick: () -> Unit
 ) {
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color    = MaterialTheme.colorScheme.background
-    ) {
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = snackbarHost,
+        contentWindowInsets = WindowInsets.systemBars
+    ) { padding ->
+        if (isLoading) {
+            HomeShimmer(modifier = Modifier.padding(padding))
+            return@Scaffold
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .statusBarsPadding()
         ) {
-
             // ── Top Bar ───────────────────────────────────────────────────────
             ScreenHeader("MELUKO")
 
             // Request notification permission for Android 13+ (API 33+)
+            val context = LocalContext.current
             val permissionLauncher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.RequestPermission(),
-                onResult = { isGranted ->
-                    if (!isGranted) {
-                        // Should probably show a rationale, but we'll keep it simple for now
-                    }
-                }
+                onResult = { }
             )
 
             LaunchedEffect(Unit) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    val granted = ContextCompat.checkSelfPermission(
+                        context, Manifest.permission.POST_NOTIFICATIONS
+                    ) == PackageManager.PERMISSION_GRANTED
+                    if (!granted) {
+                        permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
                 }
             }
 
             // ── Hero alarm card ───────────────────────────────────────────────
             AlarmHeroCard(
                 nextAlarmTime  = nextAlarmTime,
+                hasTribe       = hasTribe,
                 onProposeClick = onProposeClick,
                 modifier       = Modifier.padding(horizontal = 20.dp)
             )
@@ -185,6 +223,7 @@ fun HomeScreenContent(
 @Composable
 fun AlarmHeroCard(
     nextAlarmTime: String,
+    hasTribe: Boolean,
     onProposeClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -199,16 +238,17 @@ fun AlarmHeroCard(
         }
     }
 
+    val context = LocalContext.current
     val timePart = nextAlarmTime.replace(" AM", "").replace(" PM", "").trim()
     val amPmPart = if (nextAlarmTime.contains("PM", ignoreCase = true)) "PM" else "AM"
 
     AnimatedVisibility(
         visible = visible,
         enter = scaleIn(
-            animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow),
+            animationSpec = MotionSpec.cardEnter,
             initialScale = 0.88f
         ) + fadeIn(
-            animationSpec = spring(Spring.DampingRatioNoBouncy, Spring.StiffnessMedium)
+            animationSpec = MotionSpec.touch
         ),
         modifier = modifier
     ) {
@@ -216,7 +256,7 @@ fun AlarmHeroCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .pressScale(),
-        shape     = RoundedCornerShape(24.dp),
+        shape     = RoundedCornerShape(12.dp),
         colors    = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer
         ),
@@ -226,7 +266,7 @@ fun AlarmHeroCard(
             modifier            = Modifier
                 .fillMaxWidth()
                 .padding(28.dp),
-            horizontalAlignment = Alignment.Start
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Label
             Text(
@@ -240,8 +280,12 @@ fun AlarmHeroCard(
 
             Spacer(Modifier.height(8.dp))
 
-            // Big time + AM on same row
-            Row(verticalAlignment = Alignment.Bottom) {
+            // Big time + AM centered
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center
+            ) {
                 Text(
                     text       = timePart,
                     fontSize   = 72.sp,
@@ -265,7 +309,7 @@ fun AlarmHeroCard(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Countdown chip
@@ -273,29 +317,51 @@ fun AlarmHeroCard(
                     shape = RoundedCornerShape(50),
                     color = MaterialTheme.colorScheme.primary
                 ) {
-                    Text(
-                        text       = countdown,
-                        fontSize   = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = DefaultFontFamily,
-                        color      = MaterialTheme.colorScheme.onPrimary,
+                Text(
+                    text       = countdown,
+                    fontSize   = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = BodyFontFamily,
+                    color      = MaterialTheme.colorScheme.onPrimary,
                         modifier   = Modifier.padding(horizontal = 16.dp, vertical = 7.dp)
                     )
                 }
 
-                // Propose button
-                Button(
-                    onClick = onProposeClick,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onPrimaryContainer),
-                    shape = RoundedCornerShape(50)
-                ) {
-                    Text(
-                        text = "PROPOSE ALARM",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = DefaultFontFamily,
-                        color = MaterialTheme.colorScheme.primaryContainer
-                    )
+                Spacer(Modifier.width(12.dp))
+
+                // Propose button — only visible when user has a tribe
+                if (hasTribe) {
+                    Button(
+                        onClick = onProposeClick,
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onPrimaryContainer),
+                        shape = RoundedCornerShape(50)
+                    ) {
+                        Text(
+                            text = "PROPOSE ALARM",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = DefaultFontFamily,
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    }
+                }
+
+                if (BuildConfig.DEBUG) {
+                    Spacer(Modifier.width(8.dp))
+                    OutlinedButton(
+                        onClick = { AlarmScheduler(context).scheduleIn(5) },
+                        shape = RoundedCornerShape(50),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Text(
+                            text = "TEST",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = DefaultFontFamily
+                        )
+                    }
                 }
             }
         }
@@ -330,7 +396,7 @@ fun ActiveTribesSection(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             tribes.forEach { tribe ->
-                TribeChip(tribe = tribe, onClick = { onTribeClick(tribe.name) })
+                TribeChip(tribe = tribe, onClick = { onTribeClick(tribe.id) })
             }
         }
     }
@@ -406,7 +472,7 @@ private fun StatCard(
 ) {
     Card(
         modifier  = modifier.height(100.dp).pressScale(pressedScale = 0.92f),
-        shape     = RoundedCornerShape(24.dp),
+        shape     = RoundedCornerShape(12.dp),
         colors    = CardDefaults.cardColors(containerColor = containerColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
@@ -478,7 +544,7 @@ fun ConsistencyCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
@@ -535,6 +601,60 @@ private fun ConsistencyMetric(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  Shimmer skeleton
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun HomeShimmer(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
+        Spacer(Modifier.height(20.dp))
+        ScreenHeader("MELUKO")
+        Spacer(Modifier.height(12.dp))
+        ShimmerCard(
+            modifier = Modifier.padding(horizontal = 20.dp),
+            height = 240.dp
+        )
+        Spacer(Modifier.height(20.dp))
+        ShimmerLine(
+            width = 100.dp,
+            height = 14.dp,
+            modifier = Modifier.padding(horizontal = 20.dp)
+        )
+        Spacer(Modifier.height(12.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            ShimmerTribeChip()
+            ShimmerTribeChip()
+            ShimmerTribeChip()
+        }
+        Spacer(Modifier.height(20.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            ShimmerStatCard(Modifier.weight(1f))
+            ShimmerStatCard(Modifier.weight(1f))
+            ShimmerStatCard(Modifier.weight(1f))
+        }
+        Spacer(Modifier.height(20.dp))
+        ShimmerCard(
+            modifier = Modifier.padding(horizontal = 20.dp),
+            height = 160.dp
+        )
+        Spacer(Modifier.height(120.dp))
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  Previews
 // ─────────────────────────────────────────────────────────────────────────────
 @Preview(showBackground = true, showSystemUi = true)
@@ -543,6 +663,7 @@ private fun HomePreview() {
     MelukoTheme {
         HomeScreenContent(
             nextAlarmTime = "07:30",
+            hasTribe = true,
             activeTribes = emptyList(),
             isAlarmRinging = false,
             streakDays = 5,

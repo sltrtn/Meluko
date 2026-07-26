@@ -1,5 +1,9 @@
 package com.alarm.meluko.ui
 
+import android.util.Log
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,10 +20,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.alarm.meluko.data.FirestoreCollection
+import com.alarm.meluko.data.FirestoreField
 import com.alarm.meluko.ui.theme.DefaultFontFamily
 import com.alarm.meluko.ui.theme.BodyFontFamily
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import java.util.Date
@@ -37,6 +44,8 @@ fun TribeDetailScreen(
     val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
     // Real-time tribe metadata
+    var tribeLoaded by remember { mutableStateOf(false) }
+    var tribeError by remember { mutableStateOf<String?>(null) }
     var tribeName by remember { mutableStateOf("") }
     var tribeAlarmTime by remember { mutableStateOf("--:--") }
     var tribeMemberCount by remember { mutableStateOf(0) }
@@ -79,18 +88,40 @@ fun TribeDetailScreen(
         }
     }
 
-    // Load tribe data and start listening to proposals
-    LaunchedEffect(tribeId) {
-        db.collection("tribes").document(tribeId)
-            .addSnapshotListener { snap, _ ->
-                if (snap != null && snap.exists()) {
-                    tribeName = snap.getString("name") ?: tribeId
-                    tribeAlarmTime = snap.getString("alarmTime") ?: "--:--"
-                    tribeMemberCount = snap.getLong("memberCount")?.toInt() ?: 0
+    // Load tribe data and start listening to proposals with cleanup
+    DisposableEffect(tribeId) {
+        val tribeRegistration: ListenerRegistration = db.collection(FirestoreCollection.TRIBES).document(tribeId)
+            .addSnapshotListener { snap, error ->
+                if (error != null) {
+                    Log.w("TribeDetail", "Tribe listener error", error)
+                    tribeError = "Failed to load tribe data"
+                    return@addSnapshotListener
+                }
+                if (snap != null) {
+                    tribeLoaded = true
+                    if (snap.exists()) {
+                        tribeName = snap.getString(FirestoreField.NAME) ?: tribeId
+                        tribeAlarmTime = snap.getString(FirestoreField.ALARM_TIME) ?: "--:--"
+                        tribeMemberCount = snap.getLong(FirestoreField.MEMBER_COUNT)?.toInt() ?: 0
+                    }
                 }
             }
         socialViewModel.loadMembersForTribe(tribeId)
         proposalViewModel.listenToTribeProposals(tribeId)
+
+        onDispose {
+            tribeRegistration.remove()
+        }
+    }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val proposalError by proposalViewModel.error.collectAsState()
+
+    LaunchedEffect(proposalError) {
+        proposalError?.let {
+            snackbarHostState.showSnackbar(it)
+            proposalViewModel.clearError()
+        }
     }
 
     // Propose sheet
@@ -109,13 +140,12 @@ fun TribeDetailScreen(
             VetoBottomSheet(
                 vetosLeft = 2 - vetoesUsed,
                 onDismiss = { showVetoSheet = false },
-                onConfirmVeto = {
+                onConfirmVeto = { onSuccess ->
                     proposalViewModel.castVeto(
                         tribeId = tribeId,
-                        proposalId = proposal.id
-                    ) {
-                        showVetoSheet = false
-                    }
+                        proposalId = proposal.id,
+                        onSuccess = onSuccess
+                    )
                 }
             )
         }
@@ -124,6 +154,8 @@ fun TribeDetailScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        contentWindowInsets = WindowInsets.systemBars,
         floatingActionButton = {
             // Show propose FAB only when there is no active pending proposal
             if (!hasActiveProposal) {
@@ -143,12 +175,37 @@ fun TribeDetailScreen(
             }
         }
     ) { paddingValues ->
+        if (!tribeLoaded) {
+            if (tribeError != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = tribeError!!,
+                            fontSize = 14.sp,
+                            fontFamily = BodyFontFamily,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Button(onClick = { /* retry would re-trigger listener */ }) {
+                            Text("Retry", fontFamily = DefaultFontFamily)
+                        }
+                    }
+                }
+            } else {
+                TribeDetailShimmer(modifier = Modifier.padding(paddingValues))
+            }
+            return@Scaffold
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
-                .statusBarsPadding()
         ) {
             // Top Bar
             TopAppBar(
@@ -179,7 +236,7 @@ fun TribeDetailScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 10.dp),
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer
                 ),
@@ -205,18 +262,24 @@ fun TribeDetailScreen(
             }
 
             // Active Proposal Card (real data)
-            if (hasActiveProposal && activeProposal != null) {
-                val proposal = activeProposal!!
-                ProposalCard(
-                    proposerName = proposal.proposedByName,
-                    proposedTime = proposal.proposedTime,
-                    countdownText = countdownText,
-                    canVeto = canVeto && !alreadyVetoed,
-                    alreadyVetoed = alreadyVetoed,
-                    vetoesLeft = 2 - vetoesUsed,
-                    onVetoClick = { showVetoSheet = true },
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-                )
+            AnimatedVisibility(
+                visible = hasActiveProposal && activeProposal != null,
+                enter = scaleIn(animationSpec = MotionSpec.cardEnter, initialScale = 0.9f) +
+                        fadeIn(animationSpec = MotionSpec.touch)
+            ) {
+                activeProposal?.let { proposal ->
+                    ProposalCard(
+                        proposerName = proposal.proposedByName,
+                        proposedTime = proposal.proposedTime,
+                        countdownText = countdownText,
+                        canVeto = canVeto && !alreadyVetoed,
+                        alreadyVetoed = alreadyVetoed,
+                        vetoesLeft = 2 - vetoesUsed,
+                        vetoCount = proposal.vetoCount,
+                        onVetoClick = { showVetoSheet = true },
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                    )
+                }
             }
 
             Spacer(Modifier.height(24.dp))
@@ -272,7 +335,7 @@ private fun TribeDetailLeaderboardRow(
 
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(12.dp),
         color = if (isYou) MaterialTheme.colorScheme.primaryContainer
                 else MaterialTheme.colorScheme.surfaceContainerHigh,
         tonalElevation = 0.dp
@@ -318,6 +381,46 @@ private fun TribeDetailLeaderboardRow(
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  Shimmer skeleton
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun TribeDetailShimmer(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
+        Spacer(Modifier.height(12.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            ShimmerCircle(size = 24.dp)
+            Spacer(Modifier.width(8.dp))
+            ShimmerLine(width = 120.dp, height = 18.dp)
+        }
+        Spacer(Modifier.height(16.dp))
+        ShimmerCard(
+            modifier = Modifier.padding(horizontal = 20.dp),
+            height = 120.dp
+        )
+        Spacer(Modifier.height(24.dp))
+        ShimmerLine(
+            width = 140.dp,
+            height = 14.dp,
+            modifier = Modifier.padding(horizontal = 20.dp)
+        )
+        Spacer(Modifier.height(12.dp))
+        repeat(5) {
+            ShimmerLeaderboardRow(modifier = Modifier.padding(horizontal = 20.dp))
+        }
+        Spacer(Modifier.height(100.dp))
+    }
+}
+
 @Composable
 private fun ProposalCard(
     proposerName: String,
@@ -326,12 +429,13 @@ private fun ProposalCard(
     canVeto: Boolean,
     alreadyVetoed: Boolean,
     vetoesLeft: Int,
+    vetoCount: Int,
     onVetoClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.8f),
         contentColor = MaterialTheme.colorScheme.onErrorContainer
     ) {
@@ -342,7 +446,7 @@ private fun ProposalCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "⏰ Active Proposal",
+                    text = "Active Proposal",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = DefaultFontFamily,
@@ -364,6 +468,15 @@ private fun ProposalCard(
                 fontWeight = FontWeight.Bold,
                 fontFamily = DefaultFontFamily
             )
+            if (vetoCount > 0) {
+                Text(
+                    text = "$vetoCount veto${if (vetoCount == 1) "" else "es"} cast so far.",
+                    fontSize = 11.sp,
+                    fontFamily = BodyFontFamily,
+                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
             Text(
                 text = "If nobody vetos within the window, this will be accepted automatically.",
                 fontSize = 11.sp,
@@ -396,7 +509,7 @@ private fun ProposalCard(
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
-                            text = "VETO 🔥  ($vetoesLeft veto${if (vetoesLeft == 1) "" else "s"} remaining)",
+                            text = "VETO  ($vetoesLeft veto${if (vetoesLeft == 1) "" else "s"} remaining)",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Black,
                             fontFamily = DefaultFontFamily
