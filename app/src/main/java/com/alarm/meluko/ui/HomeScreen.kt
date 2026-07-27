@@ -268,7 +268,7 @@ fun AlarmHeroCard(
     val timePart = run {
         val parts = nextAlarmTime.split(":")
         val hour24 = parts.getOrElse(0) { "7" }.toIntOrNull() ?: 7
-        val minute = parts.getOrElse(1) { "30" }.trim()
+        val minute = parts.getOrElse(1) { "30" }.replace(Regex("[^0-9]"), "")
         val hour12 = when {
             hour24 == 0 -> 12
             hour24 > 12 -> hour24 - 12
