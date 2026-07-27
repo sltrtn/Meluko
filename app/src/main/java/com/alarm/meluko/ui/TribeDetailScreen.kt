@@ -286,7 +286,7 @@ fun TribeDetailScreen(
 
             // Tribe Leaderboard
             Text(
-                text = "Tribe Leaderboard",
+                text = "${tribeName.ifBlank { "Tribe" }} Leaderboard",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = DefaultFontFamily,

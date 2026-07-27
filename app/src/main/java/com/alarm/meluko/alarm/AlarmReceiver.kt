@@ -10,10 +10,6 @@ import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.alarm.meluko.R
-import com.alarm.meluko.data.FirestoreCollection
-import com.alarm.meluko.data.FirestoreField
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
 
 /**
  * AlarmReceiver
@@ -85,15 +81,11 @@ class AlarmReceiver : BroadcastReceiver() {
      * morning's alarm is guaranteed to be set.
      */
     private fun rescheduleTomorrow(context: Context, alarmTime: String) {
-        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
-
         val parts = alarmTime.split(":")
         if (parts.size != 2) return
         val hour = parts[0].toIntOrNull() ?: return
         val minute = parts[1].toIntOrNull() ?: return
 
-        // Schedule the same time tomorrow, regardless of Firestore state.
-        // This is the most reliable path — no async read needed.
         AlarmScheduler(context).schedule(hour, minute)
         Log.d("AlarmReceiver", "Rescheduled alarm for tomorrow at $alarmTime")
     }

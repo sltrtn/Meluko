@@ -3,9 +3,12 @@ package com.alarm.meluko.ui
 import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.alarm.meluko.alarm.AlarmScheduler
+import com.alarm.meluko.data.AlarmCache
 import com.alarm.meluko.data.FirestoreCollection
 import com.alarm.meluko.data.FirestoreField
+import com.alarm.meluko.util.ConnectivityObserver
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
@@ -13,11 +16,13 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val connectivityObserver: ConnectivityObserver
 ) : ViewModel() {
 
     private val _isLoading = MutableStateFlow(true)
@@ -44,6 +49,9 @@ class HomeViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
 
+    private val _isOnline = MutableStateFlow(true)
+    val isOnline = _isOnline.asStateFlow()
+
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
     private val uid get() = auth.currentUser?.uid
@@ -53,6 +61,23 @@ class HomeViewModel @Inject constructor(
     private var tribeRegistration: ListenerRegistration? = null
 
     init {
+        // Load from local cache immediately for instant display
+        val cachedTime = AlarmCache.getAlarmTime(context)
+        if (cachedTime != null) {
+            _nextAlarmTime.value = cachedTime
+        }
+        val cachedTribeId = AlarmCache.getTribeId(context)
+        if (cachedTribeId != null) {
+            _primaryTribeId.value = cachedTribeId
+        }
+
+        // Monitor connectivity
+        viewModelScope.launch {
+            connectivityObserver.isOnline.collect { online ->
+                _isOnline.value = online
+            }
+        }
+
         val currentUid = uid
         if (currentUid != null) {
             userAlarmRegistration = db.collection(FirestoreCollection.USER_ALARMS).document(currentUid)
@@ -67,10 +92,13 @@ class HomeViewModel @Inject constructor(
                     _isLoading.value = false
                     val tribeId = snapshot.getString(FirestoreField.PRIMARY_TRIBE_ID)
                     _primaryTribeId.value = tribeId
+                    if (tribeId != null) AlarmCache.saveTribeId(context, tribeId)
+
                     val time = snapshot.getString(FirestoreField.FOLLOWED_ALARM_TIME)
                         ?: return@addSnapshotListener
                     if (time == _nextAlarmTime.value && time != "--:--") return@addSnapshotListener
                     _nextAlarmTime.value = time
+                    AlarmCache.saveAlarmTime(context, time)
                     scheduleAlarm(time)
 
                     if (tribeId != null) {

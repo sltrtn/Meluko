@@ -131,7 +131,11 @@ class ProposalViewModel @Inject constructor() : ViewModel() {
     }
 
     fun createProposal(tribeId: String, proposedTime: String, onSuccess: () -> Unit, onError: (() -> Unit)? = null) {
-        if (uid.isEmpty()) return
+        if (uid.isEmpty()) {
+            _error.value = "Not signed in"
+            onError?.invoke()
+            return
+        }
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
@@ -169,8 +173,12 @@ class ProposalViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    fun castVeto(tribeId: String, proposalId: String, onSuccess: () -> Unit) {
-        if (uid.isEmpty()) return
+    fun castVeto(tribeId: String, proposalId: String, onSuccess: () -> Unit, onError: (() -> Unit)? = null) {
+        if (uid.isEmpty()) {
+            _error.value = "Not signed in"
+            onError?.invoke()
+            return
+        }
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null

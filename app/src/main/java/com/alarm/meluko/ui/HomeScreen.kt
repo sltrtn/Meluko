@@ -78,6 +78,7 @@ fun HomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val proposalError by proposalViewModel.error.collectAsState()
     val homeError by homeViewModel.error.collectAsState()
+    val isOnline by homeViewModel.isOnline.collectAsState()
 
     LaunchedEffect(proposalError) {
         proposalError?.let {
@@ -105,6 +106,7 @@ fun HomeScreen(
 
     HomeScreenContent(
         isLoading      = isLoading,
+        isOnline       = isOnline,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         nextAlarmTime  = nextAlarmTime,
         hasTribe       = primaryTribeId != null,
@@ -126,6 +128,7 @@ fun HomeScreen(
 @Composable
 fun HomeScreenContent(
     isLoading:      Boolean = false,
+    isOnline:       Boolean = true,
     nextAlarmTime:  String,
     hasTribe:       Boolean,
     activeTribes:   List<TribeInfo>,
@@ -156,6 +159,29 @@ fun HomeScreenContent(
         ) {
             // ── Top Bar ───────────────────────────────────────────────────────
             ScreenHeader("MELUKO")
+
+            // ── Offline banner ────────────────────────────────────────────────
+            AnimatedVisibility(visible = !isOnline) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Text(
+                        text = "You're offline — showing cached data",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
 
             // Request notification permission for Android 13+ (API 33+)
             val context = LocalContext.current
@@ -239,8 +265,21 @@ fun AlarmHeroCard(
     }
 
     val context = LocalContext.current
-    val timePart = nextAlarmTime.replace(" AM", "").replace(" PM", "").trim()
-    val amPmPart = if (nextAlarmTime.contains("PM", ignoreCase = true)) "PM" else "AM"
+    val timePart = run {
+        val parts = nextAlarmTime.split(":")
+        val hour24 = parts.getOrElse(0) { "7" }.toIntOrNull() ?: 7
+        val minute = parts.getOrElse(1) { "30" }.trim()
+        val hour12 = when {
+            hour24 == 0 -> 12
+            hour24 > 12 -> hour24 - 12
+            else -> hour24
+        }
+        "%d:%s".format(hour12, minute)
+    }
+    val amPmPart = run {
+        val hour24 = nextAlarmTime.split(":").getOrElse(0) { "7" }.toIntOrNull() ?: 7
+        if (hour24 >= 12) "PM" else "AM"
+    }
 
     AnimatedVisibility(
         visible = visible,

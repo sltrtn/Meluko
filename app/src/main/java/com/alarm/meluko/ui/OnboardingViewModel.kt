@@ -1,8 +1,11 @@
 package com.alarm.meluko.ui
 
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.alarm.meluko.data.FirestoreCollection
+import com.alarm.meluko.data.FirestoreField
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FieldValue
@@ -30,16 +33,21 @@ class OnboardingViewModel @Inject constructor() : ViewModel() {
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
 
-    // Upload profile photo to Firebase Storage and return the download URL
     private suspend fun uploadProfilePhoto(uri: Uri): String? {
-        val uid = uid ?: return null
+        val currentUid = uid ?: return null
         return try {
-            val ref = storage.reference.child("profile_photos/$uid.jpg")
+            val ref = storage.reference.child("profile_photos/$currentUid.jpg")
             ref.putFile(uri).await()
             ref.downloadUrl.await().toString()
         } catch (e: Exception) {
-            null // Non-fatal — profile still saves without a photo
+            Log.w("OnboardingVM", "Photo upload failed", e)
+            _error.value = "Photo upload failed"
+            null
         }
+    }
+
+    fun clearError() {
+        _error.value = null
     }
 
     fun updateProfile(
@@ -48,28 +56,28 @@ class OnboardingViewModel @Inject constructor() : ViewModel() {
         imageUri: Uri?,
         onSuccess: () -> Unit
     ) {
-        val uid = uid ?: return
+        val currentUid = uid ?: return
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             try {
-                // Upload photo first (if one was picked)
                 val photoUrl = if (imageUri != null) uploadProfilePhoto(imageUri) else null
 
                 val updateMap = mutableMapOf<String, Any?>(
-                    "username" to username,
-                    "bio" to bio,
+                    FirestoreField.USERNAME to username,
+                    FirestoreField.BIO to bio,
                 )
                 if (photoUrl != null) {
-                    updateMap["photoUrl"] = photoUrl
+                    updateMap[FirestoreField.PHOTO_URL] = photoUrl
                 }
 
-                db.collection("users").document(uid)
+                db.collection(FirestoreCollection.USERS).document(currentUid)
                     .update(updateMap as Map<String, Any?>)
                     .await()
 
                 onSuccess()
             } catch (e: Exception) {
+                Log.w("OnboardingVM", "Profile update failed", e)
                 _error.value = "Failed to update profile: ${e.message}"
             } finally {
                 _isLoading.value = false
@@ -82,18 +90,16 @@ class OnboardingViewModel @Inject constructor() : ViewModel() {
         description: String,
         onSuccess: () -> Unit
     ) {
-        val uid = uid ?: return
+        val currentUid = uid ?: return
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             try {
-                // Get user's displayName from users doc for denormalization
-                val userDoc = db.collection("users").document(uid).get().await()
-                val displayName = userDoc.getString("displayName") ?: "Unknown"
-                val photoUrl = userDoc.getString("photoUrl")
+                val userDoc = db.collection(FirestoreCollection.USERS).document(currentUid).get().await()
+                val displayName = userDoc.getString(FirestoreField.DISPLAY_NAME) ?: "Unknown"
+                val photoUrl = userDoc.getString(FirestoreField.PHOTO_URL)
 
                 val tribeId = UUID.randomUUID().toString()
-                // Generate a clean 6-char uppercase invite code
                 val inviteCode = buildString {
                     val chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
                     repeat(6) { append(chars.random()) }
@@ -101,46 +107,43 @@ class OnboardingViewModel @Inject constructor() : ViewModel() {
 
                 val defaultAlarmTime = "07:30"
 
-                // 1. Create the tribe document
-                db.collection("tribes").document(tribeId).set(
+                db.collection(FirestoreCollection.TRIBES).document(tribeId).set(
                     mapOf(
-                        "name" to name,
+                        FirestoreField.NAME to name,
                         "description" to description,
-                        "inviteCode" to inviteCode,
-                        "createdBy" to uid,
-                        "alarmTime" to defaultAlarmTime,
+                        FirestoreField.INVITE_CODE to inviteCode,
+                        FirestoreField.CREATED_BY to currentUid,
+                        FirestoreField.ALARM_TIME to defaultAlarmTime,
                         "alarmDays" to listOf(1, 2, 3, 4, 5),
-                        "memberCount" to 1,
-                        "photoUrl" to null,
+                        FirestoreField.MEMBER_COUNT to 1,
+                        FirestoreField.PHOTO_URL to null,
                         "toneUri" to null,
                         "toneSource" to null,
-                        "createdAt" to FieldValue.serverTimestamp()
+                        FirestoreField.CREATED_AT to FieldValue.serverTimestamp()
                     )
                 ).await()
 
-                // 2. Add creator as admin member
-                db.collection("tribes").document(tribeId)
-                    .collection("members").document(uid).set(
+                db.collection(FirestoreCollection.TRIBES).document(tribeId)
+                    .collection(FirestoreCollection.MEMBERS).document(currentUid).set(
                         mapOf(
-                            "displayName" to displayName,
-                            "photoUrl" to photoUrl,
+                            FirestoreField.DISPLAY_NAME to displayName,
+                            FirestoreField.PHOTO_URL to photoUrl,
                             "role" to "admin",
-                            "todayStatus" to "sleeping",
-                            "todayWakeTime" to null,
-                            "streakDays" to 0,
-                            "bestStreak" to 0,
-                            "totalWakes" to 0,
-                            "vetoesUsed" to 0,
-                            "rank" to 1,
-                            "joinedAt" to FieldValue.serverTimestamp()
+                            FirestoreField.TODAY_STATUS to "sleeping",
+                            FirestoreField.TODAY_WAKE_TIME to null,
+                            FirestoreField.STREAK_DAYS to 0,
+                            FirestoreField.BEST_STREAK to 0,
+                            FirestoreField.TOTAL_WAKES to 0,
+                            FirestoreField.VETOES_USED to 0,
+                            FirestoreField.RANK to 1,
+                            FirestoreField.JOINED_AT to FieldValue.serverTimestamp()
                         )
                     ).await()
 
-                // 3. Set user_alarms document so HomeScreen knows what time to show
-                db.collection("user_alarms").document(uid).set(
+                db.collection(FirestoreCollection.USER_ALARMS).document(currentUid).set(
                     mapOf(
-                        "primaryTribeId" to tribeId,
-                        "followedAlarmTime" to defaultAlarmTime,
+                        FirestoreField.PRIMARY_TRIBE_ID to tribeId,
+                        FirestoreField.FOLLOWED_ALARM_TIME to defaultAlarmTime,
                         "active" to true
                     ),
                     SetOptions.merge()
@@ -148,6 +151,7 @@ class OnboardingViewModel @Inject constructor() : ViewModel() {
 
                 onSuccess()
             } catch (e: Exception) {
+                Log.w("OnboardingVM", "Create tribe failed", e)
                 _error.value = "Failed to create tribe: ${e.message}"
             } finally {
                 _isLoading.value = false
@@ -156,19 +160,17 @@ class OnboardingViewModel @Inject constructor() : ViewModel() {
     }
 
     fun joinTribe(inviteCode: String, onSuccess: () -> Unit) {
-        val uid = uid ?: return
+        val currentUid = uid ?: return
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             try {
-                // Get user data for denormalization
-                val userDoc = db.collection("users").document(uid).get().await()
-                val displayName = userDoc.getString("displayName") ?: "Unknown"
-                val photoUrl = userDoc.getString("photoUrl")
+                val userDoc = db.collection(FirestoreCollection.USERS).document(currentUid).get().await()
+                val displayName = userDoc.getString(FirestoreField.DISPLAY_NAME) ?: "Unknown"
+                val photoUrl = userDoc.getString(FirestoreField.PHOTO_URL)
 
-                // Find tribe by invite code
-                val querySnapshot = db.collection("tribes")
-                    .whereEqualTo("inviteCode", inviteCode.trim().uppercase())
+                val querySnapshot = db.collection(FirestoreCollection.TRIBES)
+                    .whereEqualTo(FirestoreField.INVITE_CODE, inviteCode.trim().uppercase())
                     .get().await()
 
                 if (querySnapshot.isEmpty) {
@@ -178,44 +180,40 @@ class OnboardingViewModel @Inject constructor() : ViewModel() {
 
                 val tribeDoc = querySnapshot.documents[0]
                 val tribeId = tribeDoc.id
-                val alarmTime = tribeDoc.getString("alarmTime") ?: "07:30"
-                val currentCount = tribeDoc.getLong("memberCount") ?: 0
+                val alarmTime = tribeDoc.getString(FirestoreField.ALARM_TIME) ?: "07:30"
+                val currentCount = tribeDoc.getLong(FirestoreField.MEMBER_COUNT) ?: 0
 
-                // Check if user is already a member
-                val existingMember = db.collection("tribes").document(tribeId)
-                    .collection("members").document(uid).get().await()
+                val existingMember = db.collection(FirestoreCollection.TRIBES).document(tribeId)
+                    .collection(FirestoreCollection.MEMBERS).document(currentUid).get().await()
                 if (existingMember.exists()) {
                     _error.value = "You're already in this tribe!"
                     return@launch
                 }
 
-                // 1. Add user to tribe members
-                db.collection("tribes").document(tribeId)
-                    .collection("members").document(uid).set(
+                db.collection(FirestoreCollection.TRIBES).document(tribeId)
+                    .collection(FirestoreCollection.MEMBERS).document(currentUid).set(
                         mapOf(
-                            "displayName" to displayName,
-                            "photoUrl" to photoUrl,
+                            FirestoreField.DISPLAY_NAME to displayName,
+                            FirestoreField.PHOTO_URL to photoUrl,
                             "role" to "member",
-                            "todayStatus" to "sleeping",
-                            "todayWakeTime" to null,
-                            "streakDays" to 0,
-                            "bestStreak" to 0,
-                            "totalWakes" to 0,
-                            "vetoesUsed" to 0,
-                            "rank" to (currentCount + 1).toInt(),
-                            "joinedAt" to FieldValue.serverTimestamp()
+                            FirestoreField.TODAY_STATUS to "sleeping",
+                            FirestoreField.TODAY_WAKE_TIME to null,
+                            FirestoreField.STREAK_DAYS to 0,
+                            FirestoreField.BEST_STREAK to 0,
+                            FirestoreField.TOTAL_WAKES to 0,
+                            FirestoreField.VETOES_USED to 0,
+                            FirestoreField.RANK to (currentCount + 1).toInt(),
+                            FirestoreField.JOINED_AT to FieldValue.serverTimestamp()
                         )
                     ).await()
 
-                // 2. Increment memberCount on tribe
-                db.collection("tribes").document(tribeId)
-                    .update("memberCount", currentCount + 1).await()
+                db.collection(FirestoreCollection.TRIBES).document(tribeId)
+                    .update(FirestoreField.MEMBER_COUNT, currentCount + 1).await()
 
-                // 3. Set user_alarms so HomeScreen shows the tribe's alarm time
-                db.collection("user_alarms").document(uid).set(
+                db.collection(FirestoreCollection.USER_ALARMS).document(currentUid).set(
                     mapOf(
-                        "primaryTribeId" to tribeId,
-                        "followedAlarmTime" to alarmTime,
+                        FirestoreField.PRIMARY_TRIBE_ID to tribeId,
+                        FirestoreField.FOLLOWED_ALARM_TIME to alarmTime,
                         "active" to true
                     ),
                     SetOptions.merge()
@@ -223,6 +221,7 @@ class OnboardingViewModel @Inject constructor() : ViewModel() {
 
                 onSuccess()
             } catch (e: Exception) {
+                Log.w("OnboardingVM", "Join tribe failed", e)
                 _error.value = "Failed to join tribe: ${e.message}"
             } finally {
                 _isLoading.value = false

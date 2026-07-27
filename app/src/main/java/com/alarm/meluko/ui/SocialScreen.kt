@@ -188,7 +188,7 @@ fun SocialScreen(
                     verticalArrangement   = Arrangement.spacedBy(8.dp)
                 ) {
                     stillSleeping.forEach { member ->
-                        NudgeRow(member = member)
+                        SleepingMemberRow(member = member)
                     }
                 }
             }
@@ -375,7 +375,7 @@ private fun LeaderboardRow(
     val medal = when (rank) { 1 -> "🥇"; 2 -> "🥈"; 3 -> "🥉"; else -> null }
 
     Surface(
-        modifier = modifier.fillMaxWidth().pressScale(),
+        modifier = modifier.fillMaxWidth(),
         shape    = RoundedCornerShape(12.dp),
         color    = if (member.isYou)
                        MaterialTheme.colorScheme.primaryContainer
@@ -458,9 +458,7 @@ private fun LeaderboardRow(
 //  Nudge Row
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
-private fun NudgeRow(member: TribeMember) {
-    var nudged by remember { mutableStateOf(false) }
-
+private fun SleepingMemberRow(member: TribeMember) {
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh
@@ -470,48 +468,27 @@ private fun NudgeRow(member: TribeMember) {
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment     = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Row(
-                verticalAlignment     = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                // Avatar
-                UserAvatar(
-                    photoUrl = member.photoUrl,
-                    name     = member.name,
-                    size     = 36.dp
-                )
-                Column {
-                    Text(
-                        text       = member.name,
-                        fontSize   = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = DefaultFontFamily,
-                        color      = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text       = "Still sleeping",
-                        fontSize   = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = BodyFontFamily,
-                        color      = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            // Nudge button — toggles to "Sent!" after tap
-            FilledTonalButton(
-                onClick = { nudged = true },
-                enabled = !nudged,
-                shape   = RoundedCornerShape(50),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
-            ) {
+            UserAvatar(
+                photoUrl = member.photoUrl,
+                name     = member.name,
+                size     = 36.dp
+            )
+            Column {
                 Text(
-                    text       = if (nudged) "Sent ✓" else "Nudge 👋",
-                    fontSize   = 12.sp,
+                    text       = member.name,
+                    fontSize   = 13.sp,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = DefaultFontFamily
+                    fontFamily = DefaultFontFamily,
+                    color      = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text       = "Still sleeping",
+                    fontSize   = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = BodyFontFamily,
+                    color      = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

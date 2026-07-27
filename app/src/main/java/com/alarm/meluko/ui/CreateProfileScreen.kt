@@ -194,8 +194,9 @@ fun CreateProfileScreen(
                     Text(
                         text = if (selectedImageUri == null) "Add a profile photo" else "Change photo",
                         fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
-                        fontFamily = DefaultFontFamily
+                        fontFamily = BodyFontFamily
                     )
                 }
 

@@ -237,7 +237,7 @@ fun WheelPicker(
     onItemSelected: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex + 2)
     val snapBehavior = rememberSnapFlingBehavior(lazyListState = listState)
     val density = LocalDensity.current
     val itemHeightPx = with(density) { 68.dp.toPx() }
@@ -246,8 +246,8 @@ fun WheelPicker(
 
     LaunchedEffect(listState) {
         snapshotFlow { listState.firstVisibleItemIndex }.collect { index ->
-            if (index in 0 until items.size) {
-                onItemSelected(items[index])
+            if (index in 2 until items.size + 2) {
+                onItemSelected(items[index - 2])
             }
         }
     }

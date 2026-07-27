@@ -25,7 +25,7 @@ import com.alarm.meluko.ui.theme.MelukoTheme
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.CoroutineScope
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -83,14 +83,14 @@ class AlarmActivity : ComponentActivity() {
 
         val uid = firebaseAuth.currentUser?.uid
         if (uid != null) {
-            CoroutineScope(Dispatchers.IO).launch {
+            lifecycleScope.launch(Dispatchers.IO) {
                 try {
                     val doc = firebaseFirestore.collection(FirestoreCollection.USER_ALARMS)
                         .document(uid).get().await()
                     val customUri = doc.getString(FirestoreField.ALARM_TONE_URI)
                     if (customUri != null) {
                         val customRingtone = RingtoneManager.getRingtone(this@AlarmActivity, Uri.parse(customUri))
-                        if (customRingtone != null) {
+                        if (customRingtone != null && !isDestroyed) {
                             runOnUiThread {
                                 ringtone?.stop()
                                 ringtone = customRingtone

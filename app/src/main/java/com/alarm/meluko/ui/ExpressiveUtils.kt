@@ -30,8 +30,8 @@ import com.alarm.meluko.ui.theme.DefaultFontFamily
 fun Modifier.pressScale(
     pressedScale: Float = 0.94f,
     releasedScale: Float = 1.0f,
-    stiffness: Float = Spring.StiffnessMediumLow,
-    dampingRatio: Float = Spring.DampingRatioMediumBouncy
+    stiffness: Float = Spring.StiffnessMedium,
+    dampingRatio: Float = Spring.DampingRatioNoBouncy
 ): Modifier = composed {
     val scale = remember { Animatable(releasedScale) }
     this
@@ -76,16 +76,16 @@ fun ScreenHeader(title: String) {
             fontSize = 18.sp,
             fontWeight = FontWeight.Black,
             fontFamily = DefaultFontFamily,
-            letterSpacing = 6.sp,
+            letterSpacing = 3.sp,
             color = MaterialTheme.colorScheme.primary
         )
         Spacer(Modifier.height(3.dp))
         Text(
             text = today,
             fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.SemiBold,
             fontFamily = DefaultFontFamily,
-            letterSpacing = 0.5.sp,
+            letterSpacing = 0.3.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }

@@ -125,10 +125,7 @@ private fun BouncingLetter(
     // Fun bouncy spring animation
     val scale by animateFloatAsState(
         targetValue = if (isVisible) 1f else 0f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
+        animationSpec = MotionSpec.splash,
         label = "BounceScale"
     )
 

@@ -169,8 +169,8 @@ fun VetoBottomSheet(
                             .height(64.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF2E7D32),
-                            contentColor = Color.White
+                            containerColor = MaterialTheme.colorScheme.secondary,
+                            contentColor = MaterialTheme.colorScheme.onSecondary
                         )
                     ) {
                         Text(
@@ -198,12 +198,20 @@ fun VetoBottomSheet(
                             contentColor = MaterialTheme.colorScheme.onError
                         )
                     ) {
-                        Text(
-                            text       = "YES, VETO",
-                            fontSize   = 14.sp,
-                            fontWeight = FontWeight.Black,
-                            fontFamily = DefaultFontFamily
-                        )
+                        if (vetoState == VetoState.Confirming) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = MaterialTheme.colorScheme.onError,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text(
+                                text       = "YES, VETO",
+                                fontSize   = 14.sp,
+                                fontWeight = FontWeight.Black,
+                                fontFamily = DefaultFontFamily
+                            )
+                        }
                     }
                 }
             }

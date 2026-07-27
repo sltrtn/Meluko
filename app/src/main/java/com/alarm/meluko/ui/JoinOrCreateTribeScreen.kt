@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,6 +23,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -46,6 +49,7 @@ fun JoinOrCreateTribeScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     val focusManager = LocalFocusManager.current
+    val clipboardManager = LocalClipboardManager.current
 
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { delay(80); visible = true }
@@ -174,7 +178,13 @@ fun JoinOrCreateTribeScreen(
                                 placeholder = { Text("e.g. ABC123") },
                                 leadingIcon = {
                                     Icon(Icons.Rounded.ContentPaste, null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.clickable {
+                                            val text = clipboardManager.getText()?.text ?: ""
+                                            if (text.length <= 6) {
+                                                inviteCode = text.uppercase()
+                                            }
+                                        })
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(16.dp),
@@ -237,7 +247,6 @@ fun JoinOrCreateTribeScreen(
                             Spacer(Modifier.height(12.dp))
                             // Invite code preview for new tribes
                             if (tribeName.isNotBlank()) {
-                                val previewCode = tribeName.take(3).uppercase() + "XXX"
                                 Card(
                                     colors = CardDefaults.cardColors(
                                         containerColor = MaterialTheme.colorScheme.primaryContainer

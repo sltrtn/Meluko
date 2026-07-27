@@ -28,6 +28,7 @@ fun LoginScreen(authViewModel: AuthViewModel) {
     val context = LocalContext.current
     val authState by authViewModel.authState.collectAsState()
     val isLoading = authState is AuthState.Loading
+    val errorMsg = (authState as? AuthState.Error)?.message
 
     // Show toast on error — we don't navigate, just inform
     LaunchedEffect(authState) {
@@ -116,7 +117,7 @@ fun LoginScreen(authViewModel: AuthViewModel) {
                 // ── Login Card ───────────────────────────────────────────────
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(32.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                     ),
@@ -148,7 +149,7 @@ fun LoginScreen(authViewModel: AuthViewModel) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(56.dp),
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
                                 disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
@@ -165,8 +166,40 @@ fun LoginScreen(authViewModel: AuthViewModel) {
                                     text = "Continue with Google",
                                     style = MaterialTheme.typography.labelLarge,
                                     fontSize = 16.sp,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.Bold
                                 )
+                            }
+                        }
+
+                        // ── Error banner with retry ──────────────────────────
+                        if (errorMsg != null && !isLoading) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.errorContainer
+                                )
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = errorMsg,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    TextButton(
+                                        onClick = { authViewModel.signInWithGoogle(context) }
+                                    ) {
+                                        Text(
+                                            text = "RETRY",
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

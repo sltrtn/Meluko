@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.alarm.meluko.ui.theme.DefaultFontFamily
+import com.alarm.meluko.ui.theme.BodyFontFamily
 import com.alarm.meluko.ui.theme.MelukoTheme
 
 @Composable
@@ -63,7 +64,7 @@ fun SetFirstAlarmScreen(
             Text(
                 text = "Pick a wake-up time to propose to your tribe.",
                 fontSize = 12.sp,
-                fontFamily = DefaultFontFamily,
+                fontFamily = BodyFontFamily,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
@@ -113,7 +114,7 @@ fun SetFirstAlarmScreen(
                 Text(
                     text = error!!,
                     fontSize = 12.sp,
-                    fontFamily = DefaultFontFamily,
+                    fontFamily = BodyFontFamily,
                     color = MaterialTheme.colorScheme.error,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(bottom = 16.dp)
@@ -135,7 +136,7 @@ fun SetFirstAlarmScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(64.dp),
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 ),
@@ -168,7 +169,7 @@ fun SetFirstAlarmScreen(
                     text = "Skip, use default (07:30)",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = DefaultFontFamily,
+                    fontFamily = BodyFontFamily,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
