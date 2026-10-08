@@ -620,7 +620,7 @@ private fun StatsRow(
         modifier              = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        StatCard(Icons.Filled.LocalFireDepartment, "$streakDays", "Streak",    MaterialTheme.colorScheme.primaryContainer,    MaterialTheme.colorScheme.onPrimaryContainer,   Modifier.weight(1f))
+        StatCard(Icons.Filled.LocalFireDepartment, "$streakDays", "Streak",    MaterialTheme.colorScheme.primaryContainer,    MaterialTheme.colorScheme.onPrimaryContainer,   Modifier.weight(1f).celebrateBurst(rememberIncreaseTrigger(streakDays)))
         StatCard(Icons.Filled.WbSunny,             "$totalWakes", "Wake-ups",  MaterialTheme.colorScheme.secondaryContainer,  MaterialTheme.colorScheme.onSecondaryContainer,  Modifier.weight(1f))
         StatCard(Icons.Filled.EmojiEvents,         "#$rank",      "Rank",      MaterialTheme.colorScheme.tertiaryContainer,   MaterialTheme.colorScheme.onTertiaryContainer,   Modifier.weight(1f))
     }

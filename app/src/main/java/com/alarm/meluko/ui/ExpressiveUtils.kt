@@ -14,8 +14,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
@@ -68,6 +73,37 @@ fun Modifier.fabPressScale(): Modifier = pressScale(
     stiffness = Spring.StiffnessMediumLow,
     dampingRatio = Spring.DampingRatioMediumBouncy
 )
+
+/**
+ * True for exactly one composition when [value] goes up from its previous
+ * value — used to fire a one-shot celebration animation (e.g. streak ticking
+ * up) without any extra state hoisting at the call site.
+ */
+@Composable
+fun rememberIncreaseTrigger(value: Int): Boolean {
+    var previous by remember { mutableStateOf(value) }
+    val increased = value > previous
+    SideEffect { previous = value }
+    return increased
+}
+
+/**
+ * Springy pop: scales up then settles back to normal. Fire it by flipping
+ * [trigger] to true for one composition (see [rememberIncreaseTrigger]).
+ */
+fun Modifier.celebrateBurst(trigger: Boolean): Modifier = composed {
+    val scale = remember { Animatable(1f) }
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(trigger) {
+        if (trigger) {
+            scope.launch {
+                scale.animateTo(1.28f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessLow))
+                scale.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))
+            }
+        }
+    }
+    this.graphicsLayer { scaleX = scale.value; scaleY = scale.value }
+}
 
 @Composable
 fun ScreenHeader(title: String) {

@@ -529,7 +529,7 @@ fun AccountScreen(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 AccountStatCard(Icons.Filled.WbSunny, "$totalWakes", "Wake-ups", Modifier.weight(1f))
-                AccountStatCard(Icons.Filled.LocalFireDepartment, "$streakDays d", "Streak", Modifier.weight(1f))
+                AccountStatCard(Icons.Filled.LocalFireDepartment, "$streakDays d", "Streak", Modifier.weight(1f).celebrateBurst(rememberIncreaseTrigger(streakDays)))
                 AccountStatCard(Icons.Filled.EmojiEvents, "$bestStreak d", "Best", Modifier.weight(1f))
             }
 

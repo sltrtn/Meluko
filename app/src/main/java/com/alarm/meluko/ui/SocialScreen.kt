@@ -124,7 +124,7 @@ fun SocialScreen(
                         color = MaterialTheme.colorScheme.surfaceContainerHigh
                     ) {
                         Text(
-                            text = "Join or create a tribe to get started",
+                            text = "Find your tribe — wake up together.",
                             fontSize = 13.sp,
                             fontFamily = BodyFontFamily,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -160,7 +160,7 @@ fun SocialScreen(
                     modifier = Modifier.padding(horizontal = 20.dp)
                 ) {
                     Text(
-                        text = "No members yet",
+                        text = "No one here yet — invite your crew!",
                         fontSize = 13.sp,
                         fontFamily = BodyFontFamily,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
