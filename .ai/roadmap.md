@@ -27,6 +27,8 @@
 - ✅ Alarm screen — pure black, centered clock, system alarm aesthetic
 - ✅ Daily repeat — reschedule on fire (not on dismiss), survives force-kill
 - ✅ Custom alarm tone — system ringtone picker, stored in Firestore
+- ✅ Missed status detection — 10-minute grace period after alarm
+- ✅ Daily reset — own status reset to sleeping at fire time
 
 ### ✅ UI & Design
 - ✅ Material 3 theme with Sunrise Amber (#FF8C00)
@@ -41,6 +43,7 @@
 - ✅ Profile creation with photo picker
 - ✅ Shimmer loading states (4 screens)
 - ✅ MotionSpec centralization (6 named specs)
+- ✅ Emoji-free UI (AGENTS.md compliant)
 
 ### ✅ Social Features
 - ✅ Tribe creation and join by invite code
@@ -48,6 +51,7 @@
 - ✅ Alarm proposal creation + veto system
 - ✅ 2-hour auto-accept window for proposals
 - ✅ Streak tracking (awake/best/total)
+- ✅ Rank recomputation from live streaks
 - ✅ Tribe navigation with Firestore doc IDs
 
 ### ✅ Polish & Reliability
@@ -55,31 +59,48 @@
 - ✅ Error handling — UiState, snackbar errors, error states in UI
 - ✅ Notification permission — checked before requesting
 - ✅ Auto-accept guarded against duplicate snapshot calls
+- ✅ Firestore transaction in dismiss flow prevents double-count
 
 ### ✅ Infrastructure
 - ✅ Firebase Crashlytics — crash reporting
-- ✅ Firestore security rules — deployed
+- ✅ Firestore security rules — deployed and tightened
 - ✅ Debug TEST button (BuildConfig.DEBUG-gated)
+- ✅ Firebase Cloud Functions scaffold (auto-accept + join-by-code)
+- ✅ Unit tests for TimeUtils and StreakCalculator
+- ✅ Release signing config with env-var passwords
+- ✅ Local secret rotation — new keystore, google-services.json untracked
 
 ---
 
 ## Current Milestone
 
-### 📦 V1 Ship
-- Tribe system polished and reliable
-- Alarm system with daily repeat + custom tones
-- All critical bugs fixed
+### 📦 V1 Ship (production-ready foundation)
+- All critical/high bugs fixed
+- Alarm system reliable through Doze/reboot/force-kill
+- Cloud Functions written, awaiting deployment
+- Secrets rotated locally, awaiting Firebase Console updates
 
 ---
 
 ## Future Milestones
 
-### ⏳ Testing & Quality
-- Write unit tests for ViewModels
-- Write UI tests for critical flows (login, alarm, propose/veto)
-- Add Firebase emulator support for local testing
+### 🔄 Must do before real users / Play Store
+1. Deploy Cloud Functions (`cd functions && npm install && firebase deploy --only functions`)
+2. Rotate Firebase API key + download fresh `google-services.json`
+3. Register new release SHA-1/SHA-256 fingerprints in Firebase Console
+4. Battery optimization whitelist prompt (OEMs kill exact alarms)
+5. Privacy policy and terms of service links
+6. Account deletion flow (required by Google Play policy)
+7. Rebuild release APK with new keystore and re-upload to GitHub Releases
 
-### ⏳ Features
+### ⏳ Should do for polished v1
+- FCM push notifications (proposals, vetoes, acceptance, wake events)
+- Invite code sharing (copy/share sheet)
+- Leave tribe / remove member / delete tribe
+- Wire `joinTribe` client flow to the Cloud Function
+- Remove client-side auto-accept once Cloud Function is trusted
+
+### ⏳ Nice-to-have features
 - Notification deep links (tap notification → open specific screen)
 - Weekly tribe stats (average wake time, best streak race)
 - Custom alarm sounds per tribe (Spotify integration, sound packs)
@@ -90,25 +111,15 @@
 - Multiple alarm support
 - Snooze feature
 
-### ⏳ Infrastructure
-- CI/CD with GitHub Actions
-- Automated build + test on PR
+### ⏳ Engineering quality
+- Unit tests for ViewModels
+- UI tests for critical flows (login, alarm, propose/veto)
+- Firebase emulator support for local testing
+- CI/CD with GitHub Actions (build + test on PR)
 - Firebase Performance Monitoring
 - Analytics (Firebase Analytics)
 
 ### ⏳ Production Readiness
-- Battery optimization prompt (OEM-specific)
-- Release signing config
-- Privacy policy and terms of service
 - Play Store listing preparation
 - App signing and release management
-
----
-
-## Technical Debt
-
-- `google-services.json` committed — should use CI secret injection for production builds
-- No offline-first support (Firestore default cache only)
-- No unit tests or UI tests
-- `local.properties` includes SDK path — ensure `.gitignore` keeps it excluded
-- Alarm permission flow on Android 14+ needs edge-case testing (permission revoked, battery optimization)
+- Automated mapping upload verification

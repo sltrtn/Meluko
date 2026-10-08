@@ -32,10 +32,11 @@ data class AlarmProposal(
 )
 
 @HiltViewModel
-class ProposalViewModel @Inject constructor() : ViewModel() {
+class ProposalViewModel @Inject constructor(
+    private val auth: FirebaseAuth,
+    private val db: FirebaseFirestore
+) : ViewModel() {
 
-    private val db = FirebaseFirestore.getInstance()
-    private val auth = FirebaseAuth.getInstance()
     private val uid get() = auth.currentUser?.uid ?: ""
 
     private val _activeProposal = MutableStateFlow<AlarmProposal?>(null)
@@ -75,7 +76,7 @@ class ProposalViewModel @Inject constructor() : ViewModel() {
                 }
 
                 val pending = snap.documents.filter {
-                    it.getString(FirestoreField.STATUS) == "pending"
+                    it.getString(FirestoreField.STATUS) == FirestoreField.STATUS_PENDING
                 }
                 if (pending.isEmpty()) {
                     _activeProposal.value = null
@@ -109,7 +110,7 @@ class ProposalViewModel @Inject constructor() : ViewModel() {
                     proposedBy = doc.getString(FirestoreField.PROPOSED_BY) ?: "",
                     proposedByName = doc.getString(FirestoreField.PROPOSED_BY_NAME) ?: "Someone",
                     proposedTime = doc.getString(FirestoreField.PROPOSED_TIME) ?: "--:--",
-                    status = doc.getString(FirestoreField.STATUS) ?: "pending",
+                    status = doc.getString(FirestoreField.STATUS) ?: FirestoreField.STATUS_PENDING,
                     vetoedBy = (doc.get(FirestoreField.VETOED_BY) as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
                     vetoCount = doc.getLong(FirestoreField.VETO_COUNT)?.toInt() ?: 0,
                     createdAt = doc.getDate(FirestoreField.CREATED_AT),
@@ -154,7 +155,7 @@ class ProposalViewModel @Inject constructor() : ViewModel() {
                             FirestoreField.PROPOSED_BY to uid,
                             FirestoreField.PROPOSED_BY_NAME to displayName,
                             FirestoreField.PROPOSED_TIME to proposedTime,
-                            FirestoreField.STATUS to "pending",
+                            FirestoreField.STATUS to FirestoreField.STATUS_PENDING,
                             FirestoreField.VETOED_BY to emptyList<String>(),
                             FirestoreField.VETO_COUNT to 0,
                             FirestoreField.CREATED_AT to FieldValue.serverTimestamp(),
@@ -187,7 +188,7 @@ class ProposalViewModel @Inject constructor() : ViewModel() {
                     .collection(FirestoreCollection.PROPOSALS).document(proposalId)
                     .update(
                         mapOf(
-                            FirestoreField.STATUS to "vetoed",
+                            FirestoreField.STATUS to FirestoreField.STATUS_VETOED,
                             FirestoreField.VETOED_BY to FieldValue.arrayUnion(uid),
                             FirestoreField.VETO_COUNT to FieldValue.increment(1)
                         )
@@ -215,7 +216,7 @@ class ProposalViewModel @Inject constructor() : ViewModel() {
             batch.update(
                 db.collection(FirestoreCollection.TRIBES).document(tribeId)
                     .collection(FirestoreCollection.PROPOSALS).document(proposalId),
-                FirestoreField.STATUS, "accepted"
+                FirestoreField.STATUS, FirestoreField.STATUS_ACCEPTED
             )
 
             batch.update(

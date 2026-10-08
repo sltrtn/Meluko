@@ -20,11 +20,12 @@ import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
-class OnboardingViewModel @Inject constructor() : ViewModel() {
+class OnboardingViewModel @Inject constructor(
+    private val auth: FirebaseAuth,
+    private val db: FirebaseFirestore,
+    private val storage: FirebaseStorage
+) : ViewModel() {
 
-    private val db = FirebaseFirestore.getInstance()
-    private val auth = FirebaseAuth.getInstance()
-    private val storage = FirebaseStorage.getInstance()
     private val uid get() = auth.currentUser?.uid
 
     private val _isLoading = MutableStateFlow(false)
@@ -107,29 +108,35 @@ class OnboardingViewModel @Inject constructor() : ViewModel() {
 
                 val defaultAlarmTime = "07:30"
 
-                db.collection(FirestoreCollection.TRIBES).document(tribeId).set(
-                    mapOf(
-                        FirestoreField.NAME to name,
-                        "description" to description,
-                        FirestoreField.INVITE_CODE to inviteCode,
-                        FirestoreField.CREATED_BY to currentUid,
-                        FirestoreField.ALARM_TIME to defaultAlarmTime,
-                        "alarmDays" to listOf(1, 2, 3, 4, 5),
-                        FirestoreField.MEMBER_COUNT to 1,
-                        FirestoreField.PHOTO_URL to null,
-                        "toneUri" to null,
-                        "toneSource" to null,
-                        FirestoreField.CREATED_AT to FieldValue.serverTimestamp()
-                    )
-                ).await()
+                val tribeRef = db.collection(FirestoreCollection.TRIBES).document(tribeId)
+                val memberRef = tribeRef.collection(FirestoreCollection.MEMBERS).document(currentUid)
+                val userAlarmRef = db.collection(FirestoreCollection.USER_ALARMS).document(currentUid)
 
-                db.collection(FirestoreCollection.TRIBES).document(tribeId)
-                    .collection(FirestoreCollection.MEMBERS).document(currentUid).set(
+                // Batch: all three docs must be created together; partial state is unusable.
+                db.batch().apply {
+                    set(
+                        tribeRef,
+                        mapOf(
+                            FirestoreField.NAME to name,
+                            FirestoreField.DESCRIPTION to description,
+                            FirestoreField.INVITE_CODE to inviteCode,
+                            FirestoreField.CREATED_BY to currentUid,
+                            FirestoreField.ALARM_TIME to defaultAlarmTime,
+                            FirestoreField.ALARM_DAYS to listOf(1, 2, 3, 4, 5),
+                            FirestoreField.MEMBER_COUNT to 1,
+                            FirestoreField.PHOTO_URL to null,
+                            FirestoreField.TONE_URI to null,
+                            FirestoreField.TONE_SOURCE to null,
+                            FirestoreField.CREATED_AT to FieldValue.serverTimestamp()
+                        )
+                    )
+                    set(
+                        memberRef,
                         mapOf(
                             FirestoreField.DISPLAY_NAME to displayName,
                             FirestoreField.PHOTO_URL to photoUrl,
-                            "role" to "admin",
-                            FirestoreField.TODAY_STATUS to "sleeping",
+                            FirestoreField.ROLE to FirestoreField.ROLE_ADMIN,
+                            FirestoreField.TODAY_STATUS to FirestoreField.STATUS_SLEEPING,
                             FirestoreField.TODAY_WAKE_TIME to null,
                             FirestoreField.STREAK_DAYS to 0,
                             FirestoreField.BEST_STREAK to 0,
@@ -138,16 +145,17 @@ class OnboardingViewModel @Inject constructor() : ViewModel() {
                             FirestoreField.RANK to 1,
                             FirestoreField.JOINED_AT to FieldValue.serverTimestamp()
                         )
-                    ).await()
-
-                db.collection(FirestoreCollection.USER_ALARMS).document(currentUid).set(
-                    mapOf(
-                        FirestoreField.PRIMARY_TRIBE_ID to tribeId,
-                        FirestoreField.FOLLOWED_ALARM_TIME to defaultAlarmTime,
-                        "active" to true
-                    ),
-                    SetOptions.merge()
-                ).await()
+                    )
+                    set(
+                        userAlarmRef,
+                        mapOf(
+                            FirestoreField.PRIMARY_TRIBE_ID to tribeId,
+                            FirestoreField.FOLLOWED_ALARM_TIME to defaultAlarmTime,
+                            FirestoreField.ACTIVE to true
+                        ),
+                        SetOptions.merge()
+                    )
+                }.commit().await()
 
                 onSuccess()
             } catch (e: Exception) {
@@ -181,40 +189,41 @@ class OnboardingViewModel @Inject constructor() : ViewModel() {
                 val tribeDoc = querySnapshot.documents[0]
                 val tribeId = tribeDoc.id
                 val alarmTime = tribeDoc.getString(FirestoreField.ALARM_TIME) ?: "07:30"
-                val currentCount = tribeDoc.getLong(FirestoreField.MEMBER_COUNT) ?: 0
 
-                val existingMember = db.collection(FirestoreCollection.TRIBES).document(tribeId)
-                    .collection(FirestoreCollection.MEMBERS).document(currentUid).get().await()
-                if (existingMember.exists()) {
-                    _error.value = "You're already in this tribe!"
-                    return@launch
-                }
+                val tribeRef = db.collection(FirestoreCollection.TRIBES).document(tribeId)
+                val memberRef = tribeRef.collection(FirestoreCollection.MEMBERS).document(currentUid)
 
-                db.collection(FirestoreCollection.TRIBES).document(tribeId)
-                    .collection(FirestoreCollection.MEMBERS).document(currentUid).set(
+                // Atomic transaction: re-check membership, create member doc, increment count.
+                db.runTransaction { transaction ->
+                    val existing = transaction.get(memberRef)
+                    if (existing.exists()) {
+                        throw IllegalStateException("Already a member of this tribe")
+                    }
+
+                    transaction.set(
+                        memberRef,
                         mapOf(
                             FirestoreField.DISPLAY_NAME to displayName,
                             FirestoreField.PHOTO_URL to photoUrl,
-                            "role" to "member",
-                            FirestoreField.TODAY_STATUS to "sleeping",
+                            FirestoreField.ROLE to FirestoreField.ROLE_MEMBER,
+                            FirestoreField.TODAY_STATUS to FirestoreField.STATUS_SLEEPING,
                             FirestoreField.TODAY_WAKE_TIME to null,
                             FirestoreField.STREAK_DAYS to 0,
                             FirestoreField.BEST_STREAK to 0,
                             FirestoreField.TOTAL_WAKES to 0,
                             FirestoreField.VETOES_USED to 0,
-                            FirestoreField.RANK to (currentCount + 1).toInt(),
+                            FirestoreField.RANK to 1,
                             FirestoreField.JOINED_AT to FieldValue.serverTimestamp()
                         )
-                    ).await()
-
-                db.collection(FirestoreCollection.TRIBES).document(tribeId)
-                    .update(FirestoreField.MEMBER_COUNT, currentCount + 1).await()
+                    )
+                    transaction.update(tribeRef, FirestoreField.MEMBER_COUNT, FieldValue.increment(1))
+                }.await()
 
                 db.collection(FirestoreCollection.USER_ALARMS).document(currentUid).set(
                     mapOf(
                         FirestoreField.PRIMARY_TRIBE_ID to tribeId,
                         FirestoreField.FOLLOWED_ALARM_TIME to alarmTime,
-                        "active" to true
+                        FirestoreField.ACTIVE to true
                     ),
                     SetOptions.merge()
                 ).await()

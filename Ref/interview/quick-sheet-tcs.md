@@ -1,6 +1,8 @@
 # Meluko — TCS Prime Interview Quick Sheet (Last-Minute Revision)
 
 > This is the 20% of the material that produces 80% of the questions. Memorize Section A cold. Skim the rest. Always bring answers back to YOUR code.
+>
+> This file and `15-tcs-prime-quick-review.md` were both written for the same TCS Prime interview and overlap heavily (project pitch, Android fundamentals, behavioral). This one is the deeper, more project-grounded version — treat it as primary and `15-...` as the shorter night-before pass (it also covers generic OOP/SQL/coding-round basics this file doesn't). For anything technology-choice related, `00-RESUME-DEFENSE.md` is the canonical, code-verified source — it supersedes the "Why did you use X" table below wherever they disagree.
 
 ---
 

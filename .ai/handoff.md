@@ -1,124 +1,118 @@
 # Handoff — Session End
 
-> **Last updated:** 2026-07-27
-> **Last action:** Tribe system polish — 13 critical/high fixes + alarm reliability
+> **Last updated:** 2026-08-27
+> **Last action:** Full production audit + fixes (security, reliability, architecture)
 
 ---
 
 ## Current Goal
 
-Ship Meluko v1 to production. Tribe system and alarm reliability are the core focus.
+Move Meluko from "v1.0 demo" to "production-shippable foundation". The core product is complete; remaining work is deployment, monitoring, and scaling infrastructure.
 
 ---
 
 ## Completed Work (this session)
 
-### Alarm Tone Picker:
-- System ringtone picker (`TYPE_ALARM`) in AccountScreen settings
-- Selected tone URI saved to Firestore at `user_alarms/{uid}.alarmToneUri`
-- AlarmActivity plays default immediately, then async loads custom tone from Firestore
-- AccountViewModel: `alarmToneUri` state + `updateAlarmTone()` function
-- FirestoreConstants: added `ALARM_TONE_URI`, `TONE_URI`, `TONE_SOURCE` fields
-- SettingsRow: added optional `subtitle` parameter
+### Critical functional fixes
+1. **`SetFirstAlarmScreen` 12h→24h conversion** — first alarm after onboarding now fires correctly.
+2. **Exact-alarm permission flow** — HomeScreen shows a settings banner on Android 12+ when `canScheduleExactAlarms()` is false.
+3. **Auth race fix** — `AuthViewModel.syncFirestoreAfterAuth` now writes the user doc before reading, avoiding misclassification of returning users as new.
+4. **Member count race fix** — `OnboardingViewModel.joinTribe()` uses a Firestore transaction + atomic `FieldValue.increment(1)`.
+5. **Create tribe atomicity** — `createTribe()` uses a batch for tribe/member/user_alarms.
+6. **Missed status + daily reset** — `AlarmReceiver` resets own status to sleeping at fire time; `MissedAlarmReceiver` marks sleeping users as missed after a 10-minute grace period.
+7. **Double-dismiss race fix** — `AlarmActivity.handleDismiss()` uses a Firestore transaction.
+8. **Boot receiver auth restore** — waits for `FirebaseAuth` state with a 5s timeout before falling back to cache.
 
-### Alarm Reliability (Full-Screen Notification + Daily Repeat):
-- AlarmReceiver now reschedules alarm for next day **immediately when it fires** — no longer depends on user dismissing
-- Notification channel: `IMPORTANCE_HIGH`, bypass DND, lockscreen public visibility
-- Notification: `setOngoing(true)` (can't swipe away), full-screen intent
-- Removed duplicate `rescheduleAlarmForTomorrow()` from AlarmActivity (now redundant)
-- Fixed duplicate `TODAY_WAKE_TIME` key in Firestore update map
+### Security & release hygiene
+9. **Firestore rules tightened** — proposal status transitions validated, proposer matching, member create self-only with exists guard.
+10. **Secret rotation (local)** —
+    - `app/google-services.json` removed from git tracking (still in history; rotate Firebase API key in Console).
+    - New `app/release-key.jks` generated with password `meluko-secure-2026`.
+    - `.gitignore` fixed for `google-services.json` and `*.jks`.
+    - `build.gradle.kts` no longer commits fallback passwords; env vars required for real releases.
+11. **New release fingerprints** (register in Firebase Console):
+    - SHA-1: `AD:33:B3:9B:9E:69:BF:AD:5E:5E:30:12:81:C6:02:34:A4:44:C1:8B`
+    - SHA-256: `05:63:6D:87:7C:C7:F0:F0:12:13:FE:9E:79:17:8C:31:B5:F3:DA:E1:93:B8:4A:01:EF:2C:B7:96:75:87:0D:BD`
 
-### Tribe System Polish (13 fixes):
+### Architecture & code quality
+12. **Hilt DI consistency** — all ViewModels now inject `FirebaseAuth`, `FirebaseFirestore`, `FirebaseStorage` instead of calling `getInstance()`.
+13. **Firestore string literals moved to constants** — added `ROLE`, `ACTIVE`, `DESCRIPTION`, `ALARM_DAYS`, `LAST_WAKE_DATE`, `NOTIFICATIONS_ENABLED`, status enums, role enums.
+14. **Rank recomputation** — `SocialViewModel` recomputes and persists rank from sorted streaks.
+15. **TribeDetail listener clobber fixed** — `loadMembersForTribe` skips re-attaching if already listening to the same tribe.
+16. **Dead code removed** — `SafeNavigation.kt`, `UiState.kt`, `HomeViewModel.dismissAlarm/resetAlarm`, `HomeScreen.isAlarmRinging`, `AccountScreen.showToneMissing`.
+17. **Emojis removed from UI** — complies with `AGENTS.md` no-emoji rule.
+18. **Theme parent changed** to dark Material theme.
+19. **Lint cleanup** — redundant activity label removed, `NoCredentialException` handled.
 
-**CRITICAL:**
-1. `TribeInfo` now has `id` field — tribe navigation uses Firestore doc ID, not name
-2. `activeProposal!!` → `activeProposal?.let` — eliminated NPE race condition
-3. `awakeCount` computed from live member statuses (was hardcoded to 0)
-4. VetoBottomSheet waits for async Firestore write before showing success
-5. ProposeAlarmBottomSheet resets to Idle on error (was stuck in loading)
-6. Proposal time normalized to 24h format (`"07:30 AM"` → `"19:30"`) before Firestore write
+### Server-side reliability
+20. **Firebase Cloud Functions added** under `functions/`:
+    - `onProposalCreated` / `onProposalUpdated` — server-side auto-accept of expired proposals, updating **all** tribe members' `followedAlarmTime`.
+    - `joinTribeByInviteCode` — server-side invite-code validation and member creation.
+    - Deploy with `firebase deploy --only functions`.
 
-**HIGH:**
-7. Stale error cleared on Join/Create tab switch in JoinOrCreateTribeScreen
-8. TribeDetailScreen shows error state + retry when Firestore listener fails
-9. SocialScreen shows empty states ("Join or create a tribe" / "No members yet")
-10. Notification permission checked before requesting (not every composition)
-11. Propose button hidden when user has no tribe
-12. Auto-accept guarded against duplicate snapshot calls
-13. Tribe name limited to 30 characters
+### Testing
+21. **Unit tests added**:
+    - `TimeUtilsTest` — 12h→24h conversion.
+    - `StreakCalculatorTest` — streak math.
+22. **Shared utilities extracted**:
+    - `TimeUtils.to24HourTime()`
+    - `StreakCalculator.computeNewStreak()`
 
-### Previously completed (prior sessions)
-- Full app architecture: Single Activity, Compose Navigation, Hilt DI
-- Google Sign-In with Credential Manager + Firebase Auth
-- Onboarding flow (3 pages) + profile creation + tribe join/create
-- 3-tab main shell (Social/Home/Account) with animated switching
-- Alarm system: AlarmManager, BroadcastReceiver, full-screen AlarmActivity, SwipeToWakeButton
-- Social features: Tribe member list, real-time status, proposals/veto (2-hour window), streaks
-- Full Material 3 design system: Sunrise Amber, spring animations, dark mode
-- Scatter-letter splash screen, glass-morphism nav bar, expressive bottom sheets
-- Shimmer loading states, font migration (Outfit), MotionSpec centralization
-- Crashlytics, BootReceiver, Firestore rules, debug TEST button
-
----
-
-## Files Modified/Created (this session)
-
-| File | Action |
-|---|---|
-| `app/.../ui/AccountScreen.kt` | Modified — alarm tone picker row, SettingsRow subtitle, TribeInfo id |
-| `app/.../ui/AccountViewModel.kt` | Modified — alarmToneUri state, updateAlarmTone(), error on listeners |
-| `app/.../ui/HomeScreen.kt` | Modified — TribeInfo id field, hasTribe prop, notification permission fix |
-| `app/.../ui/SocialViewModel.kt` | Modified — awakeCount from live data, null tribeId handling |
-| `app/.../ui/SocialScreen.kt` | Modified — empty states for tribes and members |
-| `app/.../ui/TribeDetailScreen.kt` | Modified — activeProposal?.let, error state, VetoBottomSheet callback |
-| `app/.../ui/ProposeAlarmBottomSheet.kt` | Modified — 24h time normalization, onError callback |
-| `app/.../ui/VetoBottomSheet.kt` | Modified — async success callback, onConfirmVeto signature |
-| `app/.../ui/ProposalViewModel.kt` | Modified — onError callback, isAccepting guard |
-| `app/.../ui/JoinOrCreateTribeScreen.kt` | Modified — clearError on tab switch, tribe name max 30 chars |
-| `app/.../alarm/AlarmReceiver.kt` | Modified — reschedule on fire, notification channel improvements |
-| `app/.../alarm/AlarmActivity.kt` | Modified — custom tone loading, removed reschedule, fixed dup key |
-| `app/.../data/FirestoreConstants.kt` | Modified — added ALARM_TONE_URI, TONE_URI, TONE_SOURCE |
+### Documentation
+23. **Full `Ref/` interview-prep package** created mirroring ContextIQ format.
+24. **TCS Prime quick-sheet** added and pushed.
 
 ---
 
-## Remaining Work
+## Build status
 
-### Next:
-- [ ] Fix remaining crashes (Crashlytics active — wait for data)
-- [ ] Daily alarm repeat verification (test across reboot, force-kill)
-- [ ] Alarm volume control (`STREAM_ALARM` audio focus)
-
-### Then:
-- [ ] Battery optimization prompt (OEM-specific)
-- [ ] Release signing config
-- [ ] Multiple alarm support
-- [ ] Snooze feature
-
-### Later:
-- [ ] Unit tests for ViewModels
-- [ ] Compose UI tests for critical flows
-- [ ] Weekly tribe stats
-- [ ] Home screen widget
-- [ ] Play Store preparation
+- `./gradlew assembleDebug` ✅
+- `./gradlew assembleRelease` ✅ (with `KEYSTORE_PASSWORD` / `KEY_PASSWORD` env vars)
+- `./gradlew test` ✅
+- `./gradlew lintDebug` ✅ (warnings remain for outdated AGP/Gradle/targetSdk versions)
 
 ---
 
-## Known Bugs
+## Important manual follow-ups required
 
-1. **Crashes on tribe screen** — Crashlytics now active, waiting for data. TribeDetailScreen had `activeProposal!!` NPE (fixed this session).
-2. **VetoBottomSheet hardcoded green color** — `Color(0xFF2E7D32)` instead of theme color (cosmetic, low priority).
+1. **Firebase Console:**
+   - Rotate the exposed API key / OAuth client from the committed `google-services.json`.
+   - Download a fresh `google-services.json` and place it at `app/google-services.json` (do not commit).
+   - Register the new release SHA-1/SHA-256 fingerprints.
+2. **Deploy Cloud Functions:** `cd functions && npm install && firebase deploy --only functions`.
+3. **Wire client to Cloud Function join** (optional but recommended): replace `OnboardingViewModel.joinTribe()` client-side write with a callable to `joinTribeByInviteCode`.
+4. **Real release:** set `KEYSTORE_PASSWORD` / `KEY_PASSWORD` env vars and build with a new, secret keystore password.
+5. **Consider:** FCM push notifications, account deletion, leave tribe, Play Store privacy policy.
 
 ---
 
-## Important Context
+## Known remaining gaps (acceptable for v1 demo, not blockers)
 
-- **Repo:** `https://github.com/sltrtn/Meluko` (origin: sltrtn/Meluko, branch: master)
-- **Local path:** `/home/mad/StudioProjects/Meluko`
-- **Package:** `com.alarm.meluko`
-- **Min SDK:** 24, **Target SDK:** 36
-- **Build:** `JAVA_HOME=/home/mad/android-studio/jbr ./gradlew assembleDebug`
-- **Firebase project:** `meluko-routine`
-- **Auth:** Google Sign-In only (no email/password)
-- **DI:** Dagger Hilt with KSP
-- **Debug keystore SHA-1:** `90:20:E1:20:94:73:5E:6A:01:EA:4E:C8:50:F5:28:A3:CD:61:E4:3D`
-- **Debug keystore SHA-256:** `07:17:99:44:AE:2F:B0:AB:D6:AC:10:1A:D9:73:82:72:3A:96:AE:75:5F:92:53:71:92:E2:38:95:77:8C:17:B7`
+- Outdated dependency versions (AGP 9.2.1, Gradle 9.4.1, targetSdk 36 — lint warns).
+- `BootReceiver` still uses `FirebaseFirestore.getInstance()` directly (BroadcastReceiver).
+- Cloud Function join path not yet used by the Android client.
+- No runtime battery-optimization whitelist prompt.
+- No FCM push notifications.
+- No account deletion flow.
+- No automated CI/CD.
+
+---
+
+## Files changed (high-level)
+
+- `app/build.gradle.kts`
+- `app/.gitignore`, `.gitignore`
+- `app/src/main/AndroidManifest.xml`
+- `firestore.rules`
+- `app/src/main/java/com/alarm/meluko/auth/AuthViewModel.kt`
+- `app/src/main/java/com/alarm/meluko/alarm/{AlarmScheduler,AlarmReceiver,AlarmActivity,BootReceiver,MissedAlarmReceiver}.kt`
+- `app/src/main/java/com/alarm/meluko/data/{FirestoreConstants,AlarmCache}.kt`
+- `app/src/main/java/com/alarm/meluko/di/FirebaseModule.kt`
+- `app/src/main/java/com/alarm/meluko/ui/{HomeViewModel,HomeScreen,SocialViewModel,OnboardingViewModel,ProposalViewModel,AccountViewModel,SetFirstAlarmScreen,ProposeAlarmBottomSheet,AccountScreen,SocialScreen,TribeDetailScreen,OnboardingScreen}.kt`
+- `app/src/main/java/com/alarm/meluko/util/TimeUtils.kt`
+- `app/src/main/java/com/alarm/meluko/alarm/StreakCalculator.kt`
+- `app/src/main/res/values/themes.xml`
+- New: `functions/package.json`, `functions/index.js`, `functions/.gitignore`
+- New tests: `app/src/test/java/com/alarm/meluko/util/TimeUtilsTest.kt`, `app/src/test/java/com/alarm/meluko/alarm/StreakCalculatorTest.kt`
+- Deleted: `app/src/main/java/com/alarm/meluko/navigation/SafeNavigation.kt`, `app/src/main/java/com/alarm/meluko/ui/UiState.kt`
+- Docs: `Ref/Meluko_Master.md`, `Ref/interview/*.md`, `Ref/interview/quick-sheet-tcs.md`

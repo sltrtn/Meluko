@@ -10,6 +10,11 @@ import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.alarm.meluko.R
+import com.alarm.meluko.data.AlarmCache
+import com.alarm.meluko.data.FirestoreCollection
+import com.alarm.meluko.data.FirestoreField
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 
 /**
  * AlarmReceiver
@@ -31,7 +36,11 @@ class AlarmReceiver : BroadcastReceiver() {
         // ── 1. Reschedule for tomorrow immediately ───────────────────────────
         rescheduleTomorrow(context, alarmTime)
 
-        // ── 2. Post full-screen notification ──────────────────────────────────
+        // ── 2. Reset own status for the new day and schedule missed-check ─────
+        resetOwnStatusForNewDay(context)
+        MissedAlarmReceiver.schedule(context, alarmTime)
+
+        // ── 3. Post full-screen notification ──────────────────────────────────
         val activityIntent = Intent(context, AlarmActivity::class.java).apply {
             putExtra(AlarmActivity.EXTRA_ALARM_TIME, alarmTime)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -66,13 +75,38 @@ class AlarmReceiver : BroadcastReceiver() {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setFullScreenIntent(pendingActivityIntent, true)
-            .setAutoCancel(true)
             .setOngoing(true)
             .build()
 
         notificationManager.notify(NOTIFICATION_ID, notification)
 
         pendingResult.finish()
+    }
+
+    /**
+     * Reset the current user's todayStatus/todayWakeTime for the new day.
+     * Each device only updates its own member doc; Firestore listeners sync
+     * the change to every tribe member's screen.
+     */
+    private fun resetOwnStatusForNewDay(context: Context) {
+        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        val tribeId = AlarmCache.getTribeId(context) ?: return
+
+        FirebaseFirestore.getInstance()
+            .collection(FirestoreCollection.TRIBES).document(tribeId)
+            .collection(FirestoreCollection.MEMBERS).document(uid)
+            .update(
+                mapOf(
+                    FirestoreField.TODAY_STATUS to FirestoreField.STATUS_SLEEPING,
+                    FirestoreField.TODAY_WAKE_TIME to null
+                )
+            )
+            .addOnSuccessListener {
+                Log.d(TAG, "Reset own status to sleeping for new day")
+            }
+            .addOnFailureListener {
+                Log.w(TAG, "Failed to reset own status", it)
+            }
     }
 
     /**
@@ -92,7 +126,8 @@ class AlarmReceiver : BroadcastReceiver() {
 
     companion object {
         private const val CHANNEL_ID = "alarm_channel"
-        private const val NOTIFICATION_ID = 101
+        const val NOTIFICATION_ID = 101
         private const val REQUEST_CODE_ACTIVITY = 1002
+        private const val TAG = "AlarmReceiver"
     }
 }

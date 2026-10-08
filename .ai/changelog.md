@@ -4,6 +4,52 @@
 
 ---
 
+## 2026-08-27 — Production Audit + Fixes
+
+**Added:**
+- Exact-alarm permission banner on HomeScreen with settings intent (Android 12+)
+- `MissedAlarmReceiver` — marks user as missed after a 10-minute grace period
+- `AlarmReceiver` now resets own `todayStatus` to sleeping at fire time (daily cycle)
+- `BootReceiver` waits for FirebaseAuth restore with a 5s timeout before cache fallback
+- Firestore transaction in `AlarmActivity.handleDismiss()` to prevent double-count
+- `StreakCalculator` pure helper + unit tests
+- `TimeUtils.to24HourTime()` shared helper + unit tests
+- Firebase Cloud Functions under `functions/`:
+  - `onProposalCreated` / `onProposalUpdated` — server-side auto-accept, updates all members
+  - `joinTribeByInviteCode` — server-side invite validation and member creation
+- Hilt-injected `FirebaseStorage` in `FirebaseModule`
+- Firestore constants for statuses (`STATUS_AWAKE`, `STATUS_SLEEPING`, etc.) and roles
+- Rank recomputation in `SocialViewModel`
+
+**Changed:**
+- `SetFirstAlarmScreen` now uses shared `to24HourTime()` — first alarm fires correctly
+- `AuthViewModel` writes user doc before reading to avoid new-user misclassification
+- `OnboardingViewModel.createTribe()` uses a Firestore batch
+- `OnboardingViewModel.joinTribe()` uses a transaction + `FieldValue.increment(1)`
+- All ViewModels now inject Firebase via Hilt (no more `getInstance()` calls)
+- Firestore rules tightened: proposal transitions, proposer matching, member create guard
+- Theme parent changed from Light to dark Material theme
+- Removed emojis from all UI to comply with `AGENTS.md`
+- Release signing uses env vars with new keystore; `google-services.json` no longer tracked
+
+**Fixed:**
+- `SetFirstAlarmScreen` stored 12h time, breaking alarm scheduler
+- `memberCount` increment race when two users join simultaneously
+- `TribeDetailScreen` clobbering Social tab member listener
+- `AlarmActivity` double-dismiss race
+- `BootReceiver` unnecessary cache fallback when auth was still restoring
+- Lint warnings: redundant activity label, `NoCredentialException`
+
+**Security:**
+- Removed tracked `app/google-services.json` and generated new `app/release-key.jks`
+- New release SHA-1/SHA-256 fingerprints
+
+**Documentation:**
+- Full `Ref/` interview-prep package mirroring ContextIQ format
+- TCS Prime quick-sheet
+
+---
+
 ## 2026-07-27 — Tribe Polish + Alarm Reliability
 
 **Added:**

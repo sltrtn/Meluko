@@ -22,10 +22,11 @@ sealed class SocialUiState {
 }
 
 @HiltViewModel
-class SocialViewModel @Inject constructor() : ViewModel() {
+class SocialViewModel @Inject constructor(
+    private val auth: FirebaseAuth,
+    private val db: FirebaseFirestore
+) : ViewModel() {
 
-    private val db = FirebaseFirestore.getInstance()
-    private val auth = FirebaseAuth.getInstance()
     private val uid get() = auth.currentUser?.uid ?: ""
 
     private val _uiState = MutableStateFlow<SocialUiState>(SocialUiState.Loading)
@@ -40,6 +41,7 @@ class SocialViewModel @Inject constructor() : ViewModel() {
     private var userAlarmRegistration: ListenerRegistration? = null
     private var tribeRegistration: ListenerRegistration? = null
     private var memberRegistration: ListenerRegistration? = null
+    private var currentMemberTribeId: String? = null
 
     init {
         val currentUid = auth.currentUser?.uid
@@ -47,7 +49,12 @@ class SocialViewModel @Inject constructor() : ViewModel() {
     }
 
     fun loadMembersForTribe(tribeId: String) {
+        // Avoid replacing the listener if we're already listening to this tribe.
+        // This prevents TribeDetailScreen from clobbering the Social tab listener.
+        if (currentMemberTribeId == tribeId && memberRegistration != null) return
+
         memberRegistration?.remove()
+        currentMemberTribeId = tribeId
         memberRegistration = db.collection(FirestoreCollection.TRIBES).document(tribeId)
             .collection(FirestoreCollection.MEMBERS)
             .addSnapshotListener { snap, error ->
@@ -64,8 +71,8 @@ class SocialViewModel @Inject constructor() : ViewModel() {
                             isYou = doc.id == uid,
                             streakDays = doc.getLong(FirestoreField.STREAK_DAYS)?.toInt() ?: 0,
                             status = when (doc.getString(FirestoreField.TODAY_STATUS)) {
-                                "awake" -> WakeStatus.Awake
-                                "missed" -> WakeStatus.Missed
+                                FirestoreField.STATUS_AWAKE -> WakeStatus.Awake
+                                FirestoreField.STATUS_MISSED -> WakeStatus.Missed
                                 else -> WakeStatus.Sleeping
                             },
                             wakeTime = doc.getString(FirestoreField.TODAY_WAKE_TIME)
@@ -74,9 +81,29 @@ class SocialViewModel @Inject constructor() : ViewModel() {
                     _members.value = list
                     val awakeCount = list.count { it.status == WakeStatus.Awake }
                     _tribes.value = _tribes.value.map { it.copy(awakeCount = awakeCount) }
+
+                    // Recompute and persist current user's rank based on sorted position.
+                    recomputeOwnRankIfNeeded(tribeId, list)
                 }
                 _uiState.value = SocialUiState.Success(members = _members.value, tribes = _tribes.value)
             }
+    }
+
+    private fun recomputeOwnRankIfNeeded(tribeId: String, sortedMembers: List<TribeMember>) {
+        val currentUid = uid.takeIf { it.isNotEmpty() } ?: return
+        val index = sortedMembers.indexOfFirst { it.isYou }
+        if (index == -1) return
+        val rank = index + 1
+
+        val memberRef = db.collection(FirestoreCollection.TRIBES).document(tribeId)
+            .collection(FirestoreCollection.MEMBERS).document(currentUid)
+        memberRef.get().addOnSuccessListener { doc ->
+            val currentRank = doc.getLong(FirestoreField.RANK)?.toInt()
+            if (currentRank != rank) {
+                memberRef.update(FirestoreField.RANK, rank)
+                    .addOnFailureListener { Log.w("SocialVM", "Failed to update rank", it) }
+            }
+        }
     }
 
     private fun loadPrimaryTribeMembers(currentUid: String) {

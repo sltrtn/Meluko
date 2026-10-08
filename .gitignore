@@ -15,4 +15,6 @@
 local.properties
 *.jks
 *.keystore
+# Firebase / Google Services config — download from Firebase Console
+google-services.json
 .agents/

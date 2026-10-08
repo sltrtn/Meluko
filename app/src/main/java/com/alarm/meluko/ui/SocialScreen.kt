@@ -179,7 +179,7 @@ fun SocialScreen(
             if (stillSleeping.isNotEmpty()) {
                 Spacer(Modifier.height(24.dp))
                 SectionHeader(
-                    title    = "😴  Still Sleeping",
+                    title    = "Still Sleeping",
                     modifier = Modifier.padding(horizontal = 20.dp)
                 )
                 Spacer(Modifier.height(10.dp))
@@ -211,10 +211,10 @@ private fun MorningBoard(
     awakePercent: Float,
     modifier:     Modifier = Modifier
 ) {
-    val (moodEmoji, moodText) = when {
-        awakePercent >= 0.8f -> "☀️" to "Strong Morning!"
-        awakePercent >= 0.5f -> "⚡" to "Mixed Start"
-        else                 -> "💤" to "Rough Morning"
+    val moodText = when {
+        awakePercent >= 0.8f -> "Strong Morning!"
+        awakePercent >= 0.5f -> "Mixed Start"
+        else                 -> "Rough Morning"
     }
     val missedCount = total - awakeCount
 
@@ -236,7 +236,7 @@ private fun MorningBoard(
             Column {
                 // Mood
                 Text(
-                    text       = "$moodEmoji  $moodText",
+                    text       = moodText,
                     fontSize   = 18.sp,
                     fontWeight = FontWeight.Black,
                     fontFamily = DefaultFontFamily,
@@ -258,7 +258,7 @@ private fun MorningBoard(
                     color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.18f)
                 ) {
                     Text(
-                        text       = "You're #$youRank overall 🔥",
+                        text       = "You're #$youRank overall",
                         fontSize   = 12.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = DefaultFontFamily,
@@ -372,7 +372,7 @@ private fun LeaderboardRow(
     member:   TribeMember,
     modifier: Modifier = Modifier
 ) {
-    val medal = when (rank) { 1 -> "🥇"; 2 -> "🥈"; 3 -> "🥉"; else -> null }
+    val medal = when (rank) { 1 -> "1st"; 2 -> "2nd"; 3 -> "3rd"; else -> null }
 
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -428,8 +428,8 @@ private fun LeaderboardRow(
                 Text(
                     text       = when (member.status) {
                         WakeStatus.Awake    -> "Awake · ${member.wakeTime ?: ""}"
-                        WakeStatus.Sleeping -> "Sleeping 😴"
-                        WakeStatus.Missed   -> "Missed ❌"
+                        WakeStatus.Sleeping -> "Sleeping"
+                        WakeStatus.Missed   -> "Missed"
                     },
                     fontSize   = 11.sp,
                     fontWeight = FontWeight.Medium,
@@ -444,7 +444,7 @@ private fun LeaderboardRow(
 
             // Streak
             Text(
-                text       = "🔥 ${member.streakDays}d",
+                text       = "${member.streakDays}d",
                 fontSize   = 13.sp,
                 fontWeight = FontWeight.Black,
                 fontFamily = DefaultFontFamily,

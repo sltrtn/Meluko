@@ -42,7 +42,7 @@ users/{userId}
   ├── bio: String
   ├── photoUrl: String
   ├── tribeId: String
-  ├── awakeStreak: Int
+  ├── streakDays: Int
   ├── bestStreak: Int
   ├── totalWakes: Int
   └── createdAt: Timestamp
@@ -57,7 +57,7 @@ tribes/{tribeId}
 
 tribe_members/{tribeId}/members/{userId}
   ├── status: String (awake/sleeping/missed)
-  ├── awakeStreak: Int
+  ├── streakDays: Int
   ├── bestStreak: Int
   ├── totalWakes: Int
   └── joinedAt: Timestamp

@@ -64,7 +64,6 @@ fun HomeScreen(
 ) {
     val isLoading by homeViewModel.isLoading.collectAsState()
     val nextAlarmTime by homeViewModel.nextAlarmTime.collectAsState()
-    val isAlarmRinging by homeViewModel.isAlarmRinging.collectAsState()
     val primaryTribeId by homeViewModel.primaryTribeId.collectAsState()
     val streakDays by homeViewModel.streakDays.collectAsState()
     val totalWakes by homeViewModel.totalWakes.collectAsState()
@@ -111,12 +110,9 @@ fun HomeScreen(
         nextAlarmTime  = nextAlarmTime,
         hasTribe       = primaryTribeId != null,
         activeTribes   = activeTribes,
-        isAlarmRinging = isAlarmRinging,
         streakDays     = streakDays,
         totalWakes     = totalWakes,
         rank           = rank,
-        onDismissAlarm = { homeViewModel.dismissAlarm() },
-        onReset        = { homeViewModel.resetAlarm() },
         onTribeClick   = onTribeClick,
         onProposeClick = { showProposeSheet = true }
     )
@@ -132,13 +128,10 @@ fun HomeScreenContent(
     nextAlarmTime:  String,
     hasTribe:       Boolean,
     activeTribes:   List<TribeInfo>,
-    isAlarmRinging: Boolean,
     snackbarHost:   @Composable () -> Unit = {},
     streakDays:     Int = 0,
     totalWakes:     Int = 0,
     rank:           Int = 1,
-    onDismissAlarm: () -> Unit,
-    onReset:        () -> Unit,
     onTribeClick:   (String) -> Unit,
     onProposeClick: () -> Unit
 ) {
@@ -183,12 +176,17 @@ fun HomeScreenContent(
                 }
             }
 
-            // Request notification permission for Android 13+ (API 33+)
             val context = LocalContext.current
+
+            // Request notification permission for Android 13+ (API 33+)
             val permissionLauncher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.RequestPermission(),
                 onResult = { }
             )
+
+            var exactAlarmGranted by remember {
+                mutableStateOf(AlarmScheduler(context).canScheduleExactAlarms())
+            }
 
             LaunchedEffect(Unit) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -198,6 +196,53 @@ fun HomeScreenContent(
                     if (!granted) {
                         permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                     }
+                }
+            }
+
+            // ── Exact-alarm permission banner (Android 12+) ────────────────────
+            if (!exactAlarmGranted) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Exact alarms are disabled — your alarm may be delayed.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        TextButton(
+                            onClick = {
+                                AlarmScheduler(context).openExactAlarmSettings()
+                            }
+                        ) {
+                            Text(
+                                text = "OPEN SETTINGS",
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Re-check permission when the user returns from settings
+            LaunchedEffect(Unit) {
+                while (true) {
+                    delay(1_000L)
+                    exactAlarmGranted = AlarmScheduler(context).canScheduleExactAlarms()
                 }
             }
 
@@ -494,9 +539,9 @@ private fun StatsRow(
         modifier              = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        StatCard("🔥", "$streakDays", "Streak",    MaterialTheme.colorScheme.primaryContainer,    MaterialTheme.colorScheme.onPrimaryContainer,   Modifier.weight(1f))
-        StatCard("☀️", "$totalWakes", "Wake-ups",  MaterialTheme.colorScheme.secondaryContainer,  MaterialTheme.colorScheme.onSecondaryContainer,  Modifier.weight(1f))
-        StatCard("🏆", "#$rank",      "Rank",      MaterialTheme.colorScheme.tertiaryContainer,   MaterialTheme.colorScheme.onTertiaryContainer,   Modifier.weight(1f))
+        StatCard("", "$streakDays", "Streak",    MaterialTheme.colorScheme.primaryContainer,    MaterialTheme.colorScheme.onPrimaryContainer,   Modifier.weight(1f))
+        StatCard("", "$totalWakes", "Wake-ups",  MaterialTheme.colorScheme.secondaryContainer,  MaterialTheme.colorScheme.onSecondaryContainer,  Modifier.weight(1f))
+        StatCard("", "#$rank",      "Rank",      MaterialTheme.colorScheme.tertiaryContainer,   MaterialTheme.colorScheme.onTertiaryContainer,   Modifier.weight(1f))
     }
 }
 
@@ -604,8 +649,8 @@ fun ConsistencyCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                ConsistencyMetric("🔥", "$streakDays", "Current streak")
-                ConsistencyMetric("☀️", "$totalWakes", "Total wake-ups")
+                ConsistencyMetric("", "$streakDays", "Current streak")
+                ConsistencyMetric("", "$totalWakes", "Total wake-ups")
             }
         }
     }
@@ -704,12 +749,9 @@ private fun HomePreview() {
             nextAlarmTime = "07:30",
             hasTribe = true,
             activeTribes = emptyList(),
-            isAlarmRinging = false,
             streakDays = 5,
             totalWakes = 23,
             rank = 2,
-            onDismissAlarm = {},
-            onReset = {},
             onTribeClick = {},
             onProposeClick = {}
         )

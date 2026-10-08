@@ -22,7 +22,9 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val connectivityObserver: ConnectivityObserver
+    private val connectivityObserver: ConnectivityObserver,
+    private val auth: FirebaseAuth,
+    private val db: FirebaseFirestore
 ) : ViewModel() {
 
     private val _isLoading = MutableStateFlow(true)
@@ -43,17 +45,12 @@ class HomeViewModel @Inject constructor(
     private val _rank = MutableStateFlow(1)
     val rank = _rank.asStateFlow()
 
-    private val _isAlarmRinging = MutableStateFlow(false)
-    val isAlarmRinging = _isAlarmRinging.asStateFlow()
-
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
 
     private val _isOnline = MutableStateFlow(true)
     val isOnline = _isOnline.asStateFlow()
 
-    private val db = FirebaseFirestore.getInstance()
-    private val auth = FirebaseAuth.getInstance()
     private val uid get() = auth.currentUser?.uid
 
     private var userAlarmRegistration: ListenerRegistration? = null
@@ -160,11 +157,4 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun dismissAlarm() {
-        _isAlarmRinging.value = false
-    }
-
-    fun resetAlarm() {
-        _isAlarmRinging.value = true
-    }
 }

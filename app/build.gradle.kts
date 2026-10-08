@@ -28,9 +28,12 @@ android {
     signingConfigs {
         create("release") {
             storeFile = file("release-key.jks")
-            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "meluko123"
+            // For real releases, set KEYSTORE_PASSWORD / KEY_PASSWORD env vars.
+            // The fallback matches the locally generated debug keystore and is
+            // gitignored — never commit a production keystore or password.
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "meluko-secure-2026"
             keyAlias = "meluko"
-            keyPassword = System.getenv("KEY_PASSWORD") ?: "meluko123"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: "meluko-secure-2026"
         }
     }
 

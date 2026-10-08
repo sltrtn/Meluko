@@ -331,7 +331,7 @@ private fun TribeDetailLeaderboardRow(
     isYou: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val medal = when (rank) { 1 -> "🥇"; 2 -> "🥈"; 3 -> "🥉"; else -> null }
+    val medal = when (rank) { 1 -> "1st"; 2 -> "2nd"; 3 -> "3rd"; else -> null }
 
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -371,7 +371,7 @@ private fun TribeDetailLeaderboardRow(
                 )
             }
             Text(
-                text = "🔥 ${streak}d",
+                text = "${streak}d",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Black,
                 fontFamily = DefaultFontFamily,

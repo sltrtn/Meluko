@@ -48,4 +48,21 @@ object FirestoreField {
     const val ALARM_TONE_URI = "alarmToneUri"
     const val TONE_URI = "toneUri"
     const val TONE_SOURCE = "toneSource"
+
+    const val ROLE = "role"
+    const val ACTIVE = "active"
+    const val DESCRIPTION = "description"
+    const val ALARM_DAYS = "alarmDays"
+    const val LAST_WAKE_DATE = "lastWakeDate"
+    const val NOTIFICATIONS_ENABLED = "notificationsEnabled"
+
+    const val STATUS_AWAKE = "awake"
+    const val STATUS_SLEEPING = "sleeping"
+    const val STATUS_MISSED = "missed"
+    const val STATUS_PENDING = "pending"
+    const val STATUS_VETOED = "vetoed"
+    const val STATUS_ACCEPTED = "accepted"
+
+    const val ROLE_ADMIN = "admin"
+    const val ROLE_MEMBER = "member"
 }

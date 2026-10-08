@@ -79,7 +79,8 @@ fun AppNavGraph() {
                 val protectedRoutes = setOf(
                     Routes.HOME,
                     Routes.CREATE_PROFILE,
-                    Routes.JOIN_TRIBE
+                    Routes.JOIN_TRIBE,
+                    Routes.SET_FIRST_ALARM
                 )
                 if (currentRoute != dest && currentRoute !in protectedRoutes) {
                     navController.navigate(dest) {
@@ -121,36 +122,37 @@ fun AppNavGraph() {
         composable(Routes.ONBOARDING) {
             com.alarm.meluko.ui.OnboardingScreen(
                 onFinish = {
-                    navController.navigate(Routes.CREATE_PROFILE) {
-                        popUpTo(Routes.ONBOARDING) { inclusive = true }
-                    }
+                    // No popUpTo here — kept on the back stack so a user who
+                    // continues into the funnel can still navigate back to it.
+                    navController.navigate(Routes.CREATE_PROFILE)
                 }
             )
         }
 
         composable(Routes.CREATE_PROFILE) {
             com.alarm.meluko.ui.CreateProfileScreen(
+                onBack = { navController.popBackStack() },
                 onFinish = {
-                    navController.navigate(Routes.JOIN_TRIBE) {
-                        popUpTo(Routes.CREATE_PROFILE) { inclusive = true }
-                    }
+                    navController.navigate(Routes.JOIN_TRIBE)
                 }
             )
         }
 
         composable(Routes.JOIN_TRIBE) {
             com.alarm.meluko.ui.JoinOrCreateTribeScreen(
+                onBack = { navController.popBackStack() },
                 onFinish = {
-                    navController.navigate(Routes.SET_FIRST_ALARM) {
-                        popUpTo(Routes.JOIN_TRIBE) { inclusive = true }
-                    }
+                    navController.navigate(Routes.SET_FIRST_ALARM)
                 }
             )
         }
 
         composable(Routes.SET_FIRST_ALARM) {
             com.alarm.meluko.ui.SetFirstAlarmScreen(
+                onBack = { navController.popBackStack() },
                 onFinish = {
+                    // Funnel is complete — clear it from the back stack entirely
+                    // so Home's back button doesn't dive back into onboarding.
                     navController.navigate(Routes.HOME) {
                         popUpTo(0) { inclusive = true }
                     }

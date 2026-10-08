@@ -3,57 +3,71 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ===== HELPERS =====
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    function isTribeMember(tribeId) {
+      return isAuthenticated() && exists(
+        /databases/$(database)/documents/tribes/$(tribeId)/members/$(request.auth.uid)
+      );
+    }
+
+    function isValidProposalStatusTransition(oldStatus, newStatus) {
+      return oldStatus == 'pending' && (newStatus == 'vetoed' || newStatus == 'accepted');
+    }
+
     // ===== USER PROFILES =====
-    // Each user reads/writes only their own document.
     match /users/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read, write: if isOwner(uid);
     }
 
     // ===== USER ALARMS =====
-    // Each user reads/writes only their own alarm document.
     match /user_alarms/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read, write: if isOwner(uid);
     }
 
     // ===== TRIBES =====
-    // Any authenticated user can read tribe data (needed for joining by invite code).
-    // Creation is allowed by any authenticated user.
-    // Updates restricted to tribe members.
     match /tribes/{tribeId} {
-
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null && exists(
-        /databases/$(database)/documents/tribes/$(tribeId)/members/$(request.auth.uid)
-      );
+      // Any authenticated user can read public tribe data (needed for invite-code lookup).
+      // Creation is allowed by any authenticated user.
+      // Updates restricted to tribe members.
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isTribeMember(tribeId);
       allow delete: if false;
 
       // ===== TRIBE MEMBERS =====
       // Any tribe member can read the member list.
-      // Each user writes only their own member document.
+      // Each user creates/updates only their own member document.
+      // Deletion is not allowed.
       match /members/{memberUid} {
-        allow read: if request.auth != null && exists(
-          /databases/$(database)/documents/tribes/$(tribeId)/members/$(request.auth.uid)
-        );
-        allow create: if request.auth != null && request.auth.uid == memberUid;
-        allow update: if request.auth != null && request.auth.uid == memberUid;
+        allow read: if isTribeMember(tribeId);
+        allow create: if isOwner(memberUid)
+          && !exists(/databases/$(database)/documents/tribes/$(tribeId)/members/$(memberUid));
+        allow update: if isOwner(memberUid);
         allow delete: if false;
       }
 
       // ===== PROPOSALS =====
-      // Any tribe member can read, create, or update proposals.
-      // Update covers: proposer cancelling, other members casting veto.
-      // Deletion is not allowed (expired proposals remain for audit).
+      // Members can read/create/update proposals.
+      // Status transitions are restricted: pending -> vetoed | accepted only.
+      // The proposer must match the authenticated user.
+      // Deletion is not allowed (audit trail).
       match /proposals/{proposalId} {
-        allow read: if request.auth != null && exists(
-          /databases/$(database)/documents/tribes/$(tribeId)/members/$(request.auth.uid)
-        );
-        allow create: if request.auth != null && exists(
-          /databases/$(database)/documents/tribes/$(tribeId)/members/$(request.auth.uid)
-        );
-        allow update: if request.auth != null && exists(
-          /databases/$(database)/documents/tribes/$(tribeId)/members/$(request.auth.uid)
-        );
+        allow read: if isTribeMember(tribeId);
+        allow create: if isTribeMember(tribeId)
+          && request.resource.data.proposedBy == request.auth.uid
+          && request.resource.data.status == 'pending';
+        allow update: if isTribeMember(tribeId)
+          && isValidProposalStatusTransition(resource.data.status, request.resource.data.status)
+          && request.resource.data.proposedBy == resource.data.proposedBy
+          && request.resource.data.proposedTime == resource.data.proposedTime;
         allow delete: if false;
       }
     }

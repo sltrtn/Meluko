@@ -104,7 +104,6 @@ fun AccountScreen(
     ) { uri: Uri? -> pickedImageUri = uri }
 
     val alarmToneUri by accountViewModel.alarmToneUri.collectAsState()
-    var showToneMissing by remember { mutableStateOf(false) }
 
     val ringtonePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -162,7 +161,12 @@ fun AccountScreen(
                         label = { Text("Display Name", fontFamily = BodyFontFamily) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
                     )
 
                     OutlinedTextField(
@@ -172,7 +176,12 @@ fun AccountScreen(
                         minLines = 2,
                         maxLines = 3,
                         supportingText = { Text("${editBio.length}/120", fontFamily = BodyFontFamily) },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
                     )
 
                     if (isUpdating) CircularProgressIndicator(modifier = Modifier.size(24.dp))
@@ -294,7 +303,7 @@ fun AccountScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    // ── 🥚 Easter egg ─────────────────────────────────────────
+                    // ── Easter egg ─────────────────────────────────────────
                     val uriHandler = LocalUriHandler.current
                     AnimatedVisibility(
                         visible = showSlater,
@@ -441,12 +450,12 @@ fun AccountScreen(
                     Spacer(Modifier.height(20.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         AccountPill(
-                            text = "🔥 $streakDays-day streak",
+                            text = "$streakDays-day streak",
                             color = MaterialTheme.colorScheme.tertiary,
                             on = MaterialTheme.colorScheme.onTertiary
                         )
                         AccountPill(
-                            text = "☀️ $totalWakes wake-ups",
+                            text = "$totalWakes wake-ups",
                             color = MaterialTheme.colorScheme.primary,
                             on = MaterialTheme.colorScheme.onPrimary
                         )
@@ -464,9 +473,9 @@ fun AccountScreen(
                     .padding(horizontal = 20.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                AccountStatCard("☀️", "$totalWakes", "Wake-ups", Modifier.weight(1f))
-                AccountStatCard("🔥", "$streakDays d", "Streak", Modifier.weight(1f))
-                AccountStatCard("🏅", "$bestStreak d", "Best", Modifier.weight(1f))
+                AccountStatCard("", "$totalWakes", "Wake-ups", Modifier.weight(1f))
+                AccountStatCard("", "$streakDays d", "Streak", Modifier.weight(1f))
+                AccountStatCard("", "$bestStreak d", "Best", Modifier.weight(1f))
             }
 
             Spacer(Modifier.height(24.dp))

@@ -38,7 +38,6 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:label="@string/app_name"
             android:theme="@style/Theme.Meluko">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -68,7 +67,7 @@
 
         <!-- Boot receiver — reschedules alarm after device reboot
              exported="true": system sends BOOT_COMPLETED to all receivers
-        -->
+         -->
         <receiver
             android:name=".alarm.BootReceiver"
             android:exported="true">
@@ -76,6 +75,11 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
+
+        <!-- Missed-check receiver — marks user as missed if they didn't wake -->
+        <receiver
+            android:name=".alarm.MissedAlarmReceiver"
+            android:exported="false" />
 
     </application>
 

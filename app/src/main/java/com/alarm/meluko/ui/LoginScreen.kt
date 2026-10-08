@@ -1,6 +1,5 @@
 package com.alarm.meluko.ui
 
-import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -30,17 +29,6 @@ fun LoginScreen(authViewModel: AuthViewModel) {
     val isLoading = authState is AuthState.Loading
     val errorMsg = (authState as? AuthState.Error)?.message
 
-    // Show toast on error — we don't navigate, just inform
-    LaunchedEffect(authState) {
-        if (authState is AuthState.Error) {
-            Toast.makeText(
-                context,
-                (authState as AuthState.Error).message,
-                Toast.LENGTH_LONG
-            ).show()
-        }
-    }
-
     // Animated entry — slides up and fades in on first render
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }
@@ -68,7 +56,7 @@ fun LoginScreen(authViewModel: AuthViewModel) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 28.dp),
+                    .padding(horizontal = 20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
@@ -148,7 +136,8 @@ fun LoginScreen(authViewModel: AuthViewModel) {
                             enabled = !isLoading,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(56.dp),
+                                .height(64.dp)
+                                .pressScale(),
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,

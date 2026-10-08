@@ -18,9 +18,9 @@ import androidx.compose.material.icons.rounded.ContentPaste
 import androidx.compose.material.icons.rounded.People
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -39,13 +39,14 @@ import kotlinx.coroutines.delay
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun JoinOrCreateTribeScreen(
+    onBack: () -> Unit = {},
     onFinish: () -> Unit,
     viewModel: OnboardingViewModel = hiltViewModel()
 ) {
-    var isJoining by remember { mutableStateOf(true) }
-    var inviteCode by remember { mutableStateOf("") }
-    var tribeName by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
+    var isJoining by rememberSaveable { mutableStateOf(true) }
+    var inviteCode by rememberSaveable { mutableStateOf("") }
+    var tribeName by rememberSaveable { mutableStateOf("") }
+    var description by rememberSaveable { mutableStateOf("") }
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     val focusManager = LocalFocusManager.current
@@ -55,25 +56,13 @@ fun JoinOrCreateTribeScreen(
     LaunchedEffect(Unit) { delay(80); visible = true }
 
     val bgColor = MaterialTheme.colorScheme.background
-    val primaryColor = MaterialTheme.colorScheme.primary
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(bgColor)
     ) {
-        // Glow
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(300.dp)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(primaryColor.copy(alpha = 0.12f), Color.Transparent),
-                        radius = 600f
-                    )
-                )
-        )
+        OnboardingGlowBackdrop()
 
         AnimatedVisibility(
             visible = visible,
@@ -85,41 +74,16 @@ fun JoinOrCreateTribeScreen(
                     .verticalScroll(rememberScrollState())
                     .statusBarsPadding()
                     .navigationBarsPadding()
-                    .padding(horizontal = 28.dp),
+                    .padding(horizontal = 20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Spacer(Modifier.height(56.dp))
 
-                Text(
-                    text = "STEP 2 OF 2",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = DefaultFontFamily,
-                    letterSpacing = 3.sp,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                )
-
-                Spacer(Modifier.height(16.dp))
-
-                Text(
-                    text = "Find Your\nTribe",
-                    fontSize = 40.sp,
-                    fontWeight = FontWeight.Black,
-                    fontFamily = DefaultFontFamily,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 44.sp
-                )
-
-                Spacer(Modifier.height(8.dp))
-
-                Text(
-                    text = "Join an existing tribe with an invite code\nor start your own.",
-                    fontSize = 15.sp,
-                    fontFamily = BodyFontFamily,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 22.sp
+                OnboardingStepHeader(
+                    step = 2,
+                    totalSteps = 3,
+                    title = "Find Your\nTribe",
+                    subtitle = "Join an existing tribe with an invite code or start your own."
                 )
 
                 Spacer(Modifier.height(36.dp))
@@ -304,8 +268,9 @@ fun JoinOrCreateTribeScreen(
                     enabled = !isLoading && if (isJoining) inviteCode.length == 6 else tribeName.isNotBlank(),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(58.dp),
-                    shape = RoundedCornerShape(20.dp),
+                        .height(64.dp)
+                        .pressScale(),
+                    shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
                     if (isLoading) {
@@ -331,5 +296,13 @@ fun JoinOrCreateTribeScreen(
                 Spacer(Modifier.height(32.dp))
             }
         }
+
+        OnboardingBackButton(
+            onBack = onBack,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .statusBarsPadding()
+                .padding(start = 20.dp, top = 16.dp)
+        )
     }
 }

@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.alarm.meluko.data.FirestoreCollection
@@ -183,6 +184,9 @@ class AuthViewModel @Inject constructor(
                     isNewUser = isNewUser
                 )
 
+            } catch (e: NoCredentialException) {
+                Log.d(TAG, "No Google credentials available: ${e.message}")
+                _authState.value = AuthState.Error("No Google account found on this device")
             } catch (e: GetCredentialException) {
                 Log.d(TAG, "Credential picker cancelled: ${e.message}")
                 _authState.value = AuthState.Error("Sign-in cancelled: ${e.message}")
@@ -205,28 +209,26 @@ class AuthViewModel @Inject constructor(
     ): Boolean {
         return try {
             withTimeoutOrNull(FIRESTORE_TIMEOUT_MS) {
-                coroutineScope {
-                    // Write user doc (best-effort, non-critical)
-                    val writeDeferred = async {
-                        try {
-                            firestore.collection(FirestoreCollection.USERS).document(uid)
-                                .set(
-                                    mapOf(
-                                        FirestoreField.DISPLAY_NAME to displayName,
-                                        FirestoreField.EMAIL to email,
-                                        FirestoreField.PHOTO_URL to null,
-                                        FirestoreField.USERNAME to "",
-                                        FirestoreField.BIO to "",
-                                        FirestoreField.CREATED_AT to FieldValue.serverTimestamp()
-                                    ),
-                                    SetOptions.merge()
-                                ).await()
-                        } catch (e: Exception) {
-                            Log.w(TAG, "User doc write failed (non-critical): ${e.message}")
-                        }
-                    }
+                // 1. Write user doc first (best-effort, non-critical)
+                try {
+                    firestore.collection(FirestoreCollection.USERS).document(uid)
+                        .set(
+                            mapOf(
+                                FirestoreField.DISPLAY_NAME to displayName,
+                                FirestoreField.EMAIL to email,
+                                FirestoreField.PHOTO_URL to null,
+                                FirestoreField.USERNAME to "",
+                                FirestoreField.BIO to "",
+                                FirestoreField.CREATED_AT to FieldValue.serverTimestamp()
+                            ),
+                            SetOptions.merge()
+                        ).await()
+                } catch (e: Exception) {
+                    Log.w(TAG, "User doc write failed (non-critical): ${e.message}")
+                }
 
-                    // Read both docs in parallel
+                // 2. Read both docs in parallel AFTER the write has completed
+                coroutineScope {
                     val userDocDeferred = async {
                         firestore.collection(FirestoreCollection.USERS)
                             .document(uid).get().await()
@@ -236,7 +238,6 @@ class AuthViewModel @Inject constructor(
                             .document(uid).get().await()
                     }
 
-                    writeDeferred.await()
                     val userDoc = userDocDeferred.await()
                     val alarmsDoc = alarmsDocDeferred.await()
 

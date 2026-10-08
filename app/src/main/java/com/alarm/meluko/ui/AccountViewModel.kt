@@ -19,11 +19,12 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 @HiltViewModel
-class AccountViewModel @Inject constructor() : ViewModel() {
+class AccountViewModel @Inject constructor(
+    private val auth: FirebaseAuth,
+    private val db: FirebaseFirestore,
+    private val storage: FirebaseStorage
+) : ViewModel() {
 
-    private val db = FirebaseFirestore.getInstance()
-    private val auth = FirebaseAuth.getInstance()
-    private val storage = FirebaseStorage.getInstance()
     private val uid get() = auth.currentUser?.uid ?: ""
 
     private val _isLoaded = MutableStateFlow(false)
@@ -89,7 +90,7 @@ class AccountViewModel @Inject constructor() : ViewModel() {
                     _username.value = snap.getString(FirestoreField.USERNAME) ?: ""
                     _bio.value = snap.getString(FirestoreField.BIO) ?: ""
                     _photoUrl.value = snap.getString(FirestoreField.PHOTO_URL)
-                    _notificationsEnabled.value = snap.getBoolean("notificationsEnabled") ?: true
+                    _notificationsEnabled.value = snap.getBoolean(FirestoreField.NOTIFICATIONS_ENABLED) ?: true
                 }
                 if (snap != null && !snap.exists()) {
                     _isLoaded.value = true
@@ -182,7 +183,7 @@ class AccountViewModel @Inject constructor() : ViewModel() {
         viewModelScope.launch {
             try {
                 db.collection(FirestoreCollection.USERS).document(uid)
-                    .update("notificationsEnabled", enabled).await()
+                    .update(FirestoreField.NOTIFICATIONS_ENABLED, enabled).await()
                 _notificationsEnabled.value = enabled
             } catch (e: Exception) {
                 Log.w("AccountVM", "Notification prefs update failed", e)

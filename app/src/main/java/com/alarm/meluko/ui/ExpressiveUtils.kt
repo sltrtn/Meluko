@@ -3,7 +3,9 @@ package com.alarm.meluko.ui
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,7 +15,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
@@ -34,16 +38,22 @@ fun Modifier.pressScale(
     dampingRatio: Float = Spring.DampingRatioNoBouncy
 ): Modifier = composed {
     val scale = remember { Animatable(releasedScale) }
+    val scope = rememberCoroutineScope()
     this
         .graphicsLayer { scaleX = scale.value; scaleY = scale.value }
         .pointerInput(Unit) {
-            detectTapGestures(
-                onPress = {
+            awaitEachGesture {
+                // requireUnconsumed = false lets parent clickable elements still receive the tap
+                awaitFirstDown(requireUnconsumed = false)
+                val pressJob = scope.launch {
                     scale.animateTo(pressedScale, spring(dampingRatio, stiffness))
-                    tryAwaitRelease()
+                }
+                waitForUpOrCancellation()
+                pressJob.cancel()
+                scope.launch {
                     scale.animateTo(releasedScale, spring(dampingRatio, stiffness))
                 }
-            )
+            }
         }
 }
 

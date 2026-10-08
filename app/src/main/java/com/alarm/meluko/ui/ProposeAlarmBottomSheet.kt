@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.alarm.meluko.ui.theme.DefaultFontFamily
 import com.alarm.meluko.ui.theme.BodyFontFamily
+import com.alarm.meluko.util.to24HourTime
 import kotlinx.coroutines.delay
 
 private enum class ProposeState { Idle, Sending, Success }
@@ -182,17 +183,9 @@ fun ProposeAlarmBottomSheet(
                 Button(
                     onClick = {
                         proposeState = ProposeState.Sending
-                        val hour24 = when {
-                            selectedAmPm == "AM" && selectedHour == "12" -> "00"
-                            selectedAmPm == "PM" && selectedHour != "12" -> {
-                                val h = selectedHour.toIntOrNull() ?: 7
-                                "%02d".format(h + 12)
-                            }
-                            else -> selectedHour.padStart(2, '0')
-                        }
                         proposalViewModel.createProposal(
                             tribeId = tribeId,
-                            proposedTime = "$hour24:$selectedMinute",
+                            proposedTime = to24HourTime(selectedHour, selectedMinute, selectedAmPm),
                             onSuccess = { proposeState = ProposeState.Success },
                             onError = { proposeState = ProposeState.Idle }
                         )

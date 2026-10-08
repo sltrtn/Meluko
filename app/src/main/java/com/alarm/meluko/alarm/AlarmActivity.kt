@@ -22,6 +22,7 @@ import com.alarm.meluko.data.FirestoreCollection
 import com.alarm.meluko.data.FirestoreField
 import com.alarm.meluko.ui.AlarmScreen
 import com.alarm.meluko.ui.theme.MelukoTheme
+import com.alarm.meluko.alarm.StreakCalculator
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.AndroidEntryPoint
@@ -156,39 +157,46 @@ class AlarmActivity : ComponentActivity() {
                         val memberRef = firebaseFirestore.collection(FirestoreCollection.TRIBES).document(tribeId)
                             .collection(FirestoreCollection.MEMBERS).document(uid)
 
-                        memberRef.get().addOnSuccessListener { memberDoc ->
-                            val lastWakeDate = memberDoc.getString("lastWakeDate")
-                            val currentStatus = memberDoc.getString(FirestoreField.TODAY_STATUS) ?: "sleeping"
+                        // Use a transaction so two rapid dismisses can't double-count.
+                        firebaseFirestore.runTransaction { transaction ->
+                            val memberDoc = transaction.get(memberRef)
+                            val currentStatus = memberDoc.getString(FirestoreField.TODAY_STATUS)
+                                ?: FirestoreField.STATUS_SLEEPING
 
-                            if (currentStatus == "awake") {
-                                finish()
-                                return@addOnSuccessListener
-                            }
+                            if (currentStatus == FirestoreField.STATUS_AWAKE) {
+                                null // already counted today
+                            } else {
+                                val lastWakeDate = memberDoc.getString(FirestoreField.LAST_WAKE_DATE)
+                                val currentStreak = memberDoc.getLong(FirestoreField.STREAK_DAYS)?.toInt() ?: 0
+                                val currentBestStreak = memberDoc.getLong(FirestoreField.BEST_STREAK)?.toInt() ?: 0
+                                val currentTotalWakes = memberDoc.getLong(FirestoreField.TOTAL_WAKES)?.toInt() ?: 0
 
-                            val currentStreak = memberDoc.getLong(FirestoreField.STREAK_DAYS)?.toInt() ?: 0
-                            val currentBestStreak = memberDoc.getLong(FirestoreField.BEST_STREAK)?.toInt() ?: 0
-                            val currentTotalWakes = memberDoc.getLong(FirestoreField.TOTAL_WAKES)?.toInt() ?: 0
-
-                            val newStreak = if (lastWakeDate == yesterday) currentStreak + 1 else 1
-                            val newBestStreak = max(newStreak, currentBestStreak)
-                            val newTotalWakes = currentTotalWakes + 1
-
-                            memberRef.update(
-                                mapOf(
-                                    FirestoreField.TODAY_STATUS to "awake",
-                                    FirestoreField.TODAY_WAKE_TIME to wakeTime,
-                                    FirestoreField.STREAK_DAYS to newStreak,
-                                    FirestoreField.BEST_STREAK to newBestStreak,
-                                    FirestoreField.TOTAL_WAKES to newTotalWakes,
-                                    "lastWakeDate" to today
+                                val (newStreak, shouldCount) = StreakCalculator.computeNewStreak(
+                                    lastWakeDate, today, yesterday, currentStreak
                                 )
-                            ).addOnCompleteListener {
-                                // Alarm already rescheduled in AlarmReceiver.onReceive
-                                // when it fired — no need to reschedule again here.
-                                finish()
+                                if (!shouldCount) {
+                                    null // already counted today
+                                } else {
+                                    val newBestStreak = max(newStreak, currentBestStreak)
+                                    val newTotalWakes = currentTotalWakes + 1
+
+                                    transaction.update(
+                                        memberRef,
+                                        mapOf(
+                                            FirestoreField.TODAY_STATUS to FirestoreField.STATUS_AWAKE,
+                                            FirestoreField.TODAY_WAKE_TIME to wakeTime,
+                                            FirestoreField.STREAK_DAYS to newStreak,
+                                            FirestoreField.BEST_STREAK to newBestStreak,
+                                            FirestoreField.TOTAL_WAKES to newTotalWakes,
+                                            FirestoreField.LAST_WAKE_DATE to today
+                                        )
+                                    )
+                                    newTotalWakes
+                                }
                             }
-                        }.addOnFailureListener {
-                            Log.w("AlarmActivity", "Member doc read failed", it)
+                        }.addOnCompleteListener {
+                            // Alarm already rescheduled in AlarmReceiver.onReceive
+                            // when it fired — no need to reschedule again here.
                             finish()
                         }
                     } else {
@@ -209,7 +217,8 @@ class AlarmActivity : ComponentActivity() {
         ringtone?.stop()
         vibrator?.cancel()
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.cancel(101)
+        notificationManager.cancel(AlarmReceiver.NOTIFICATION_ID)
+        MissedAlarmReceiver.cancel(this)
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 }
