@@ -6,15 +6,18 @@
 
 ## Objective
 
-Move Meluko from v1.0 demo to production-shippable foundation. Core product is complete; focus is now deployment, secret rotation, Cloud Functions, and monitoring.
+Move Meluko from v1.0 demo to a beta-ready app. Core product is complete; this pass added the remaining Play-Store-policy features (account deletion), reliability/social polish (battery prompt, leave/remove/delete tribe, invite sharing), and a UI personality pass.
 
 ---
 
 ## Status
 
-✅ Full production audit completed.
+✅ Full production audit completed and committed (was sitting uncommitted for ~6 weeks — recovered and verified before building on it).
 ✅ All critical/high issues from audit fixed.
-✅ Debug + release builds pass; unit tests pass; lint passes.
+✅ Beta-readiness feature set added (see roadmap "Beta-readiness pass").
+✅ Firestore rules deployed to meluko-routine.
+⚠️ Cloud Functions **not deployed** — meluko-routine is on the free Spark plan; deploying requires upgrading to Blaze (user's call, needs billing).
+✅ Debug build + unit tests + lint pass. No adb/emulator available in this environment, so no live on-device smoke test was done this session — verify manually before a real release.
 
 ---
 
@@ -49,12 +52,19 @@ Move Meluko from v1.0 demo to production-shippable foundation. Core product is c
 - [x] Remove emojis from UI
 - [x] Add unit tests (TimeUtils, StreakCalculator)
 - [x] Fix lint issues
+- [x] Account deletion flow
+- [x] Battery-optimization whitelist banner
+- [x] Leave tribe / admin remove-member / admin delete-tribe
+- [x] Invite-code share sheet
+- [x] Deploy Firestore rules to meluko-routine
+- [x] Fun-factor UI pass (icon badges, streak celebration, copy)
 
 ---
 
 ## Next Immediate Step
 
-1. Rotate Firebase API key / OAuth client in Firebase Console and download fresh `google-services.json`.
-2. Register new release SHA fingerprints in Firebase Console.
-3. Deploy Cloud Functions: `cd functions && npm install && firebase deploy --only functions`.
-4. Set real `KEYSTORE_PASSWORD` / `KEY_PASSWORD` env vars and build release.
+1. Decide whether to upgrade meluko-routine to Blaze; if yes, deploy Cloud Functions: `cd functions && firebase deploy --only functions` (dependencies already installed).
+2. Rotate Firebase API key / OAuth client in Firebase Console and download fresh `google-services.json`.
+3. Register new release SHA fingerprints in Firebase Console.
+4. Privacy policy / terms of service links.
+5. Set real `KEYSTORE_PASSWORD` / `KEY_PASSWORD` env vars and build release.

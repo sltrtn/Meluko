@@ -1,118 +1,81 @@
 # Handoff — Session End
 
-> **Last updated:** 2026-08-27
-> **Last action:** Full production audit + fixes (security, reliability, architecture)
+> **Last updated:** 2026-10-08
+> **Last action:** Beta-readiness feature pass (account deletion, tribe leave/remove/delete, invite sharing, battery prompt, fun-factor UI polish)
 
 ---
 
 ## Current Goal
 
-Move Meluko from "v1.0 demo" to "production-shippable foundation". The core product is complete; remaining work is deployment, monitoring, and scaling infrastructure.
+Move Meluko from "v1.0 demo" toward a beta-ready app other people can actually use. Core product and production-audit hardening (2026-08-27) are done; this session closed most of the remaining "must do before real users" and "should do for polished v1" gaps.
+
+---
+
+## Important: recovered a 6-week-old uncommitted backlog
+
+The entire 2026-08-27 production audit session's work (security rules, race-condition fixes, Hilt DI cleanup, Cloud Functions scaffold, dead code removal, unit tests) was sitting **uncommitted** in the working tree since that session — it was never committed. This session verified it still built and passed tests, then committed it (`d61ebd4`) before building anything new on top. If you're reading this expecting that work to already be on GitHub: it's committed locally, but **check whether this repo's commits have been pushed to origin** — pushing was not done automatically this session (see "Push status" below).
 
 ---
 
 ## Completed Work (this session)
 
-### Critical functional fixes
-1. **`SetFirstAlarmScreen` 12h→24h conversion** — first alarm after onboarding now fires correctly.
-2. **Exact-alarm permission flow** — HomeScreen shows a settings banner on Android 12+ when `canScheduleExactAlarms()` is false.
-3. **Auth race fix** — `AuthViewModel.syncFirestoreAfterAuth` now writes the user doc before reading, avoiding misclassification of returning users as new.
-4. **Member count race fix** — `OnboardingViewModel.joinTribe()` uses a Firestore transaction + atomic `FieldValue.increment(1)`.
-5. **Create tribe atomicity** — `createTribe()` uses a batch for tribe/member/user_alarms.
-6. **Missed status + daily reset** — `AlarmReceiver` resets own status to sleeping at fire time; `MissedAlarmReceiver` marks sleeping users as missed after a 10-minute grace period.
-7. **Double-dismiss race fix** — `AlarmActivity.handleDismiss()` uses a Firestore transaction.
-8. **Boot receiver auth restore** — waits for `FirebaseAuth` state with a 5s timeout before falling back to cache.
+1. **Account deletion flow** — `AccountViewModel.deleteAccount(context, onSuccess)`: best-effort leave-tribe + delete user/user_alarms docs + delete Storage photo, then `FirebaseAuth` user delete, re-prompting Google Sign-In via Credential Manager if the session is stale. Required by Google Play policy before any real release. UI: "Delete Account" row in a danger zone on AccountScreen with a confirmation dialog.
+2. **Battery-optimization banner** — dismissible banner on HomeScreen using `PowerManager.isIgnoringBatteryOptimizations` + `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` intent. Dismiss state persisted in SharedPreferences (`meluko_prefs`).
+3. **Leave tribe / remove member / delete tribe** — new functions in `SocialViewModel`: `leaveTribe`, `removeMember` (admin-only), `deleteTribe` (admin-only, last member only). Firestore rules updated with an `isTribeAdmin()` helper and delete permissions on `tribes/{id}` and `tribes/{id}/members/{uid}`. **Write ordering inside each transaction matters** — e.g. the tribe's `memberCount` update must be written *before* the member doc is deleted in the same transaction, because the tribe-update rule checks `isTribeMember()` which depends on the member doc still existing at evaluation time. Mirrors the existing `joinTribe` pattern (member-write-then-tribe-update), which is how this ordering requirement was discovered to already be relied upon.
+4. **Invite-code share sheet** — TribeDetailScreen now shows the invite code (it was generated at tribe creation but never displayed anywhere since) and has a share action (`Intent.ACTION_SEND`) in the top bar.
+5. **`onMemberRemoved` Cloud Function** — written (Firestore-trigger on member-doc delete, clears the removed/left user's `primaryTribeId` server-side) but **not deployed** — see below.
+6. **Client-side self-heal fallback** — because Cloud Functions aren't deployed, `SocialViewModel` now detects `PERMISSION_DENIED` on the members listener (removed from tribe) or a non-existent tribe doc (tribe deleted), and clears its own `primaryTribeId` client-side instead of getting stuck in an error loop. Replace this with the real `onMemberRemoved` trigger once Cloud Functions are deployed (it's more robust — handles the case where the user never reopens the app).
+7. **Fun-factor UI pass** (same layout and colors, per explicit instruction): replaced the blank `Text(emoji, ...)` placeholders left over from the earlier no-emoji pass (Home stat cards, Account stat cards, Consistency metrics) with tinted icon badges (flame/sun/trophy); added a one-shot springy "celebration pulse" (`celebrateBurst`/`rememberIncreaseTrigger` in `ExpressiveUtils`) on the streak stat when it increases; warmed up two of the flattest empty-state copy lines in SocialScreen.
+8. **`AuthConstants.WEB_CLIENT_ID`** — deduplicated the Google OAuth web client ID out of `AuthViewModel` so `AccountViewModel` can reuse it for re-auth.
 
-### Security & release hygiene
-9. **Firestore rules tightened** — proposal status transitions validated, proposer matching, member create self-only with exists guard.
-10. **Secret rotation (local)** —
-    - `app/google-services.json` removed from git tracking (still in history; rotate Firebase API key in Console).
-    - New `app/release-key.jks` generated with password `meluko-secure-2026`.
-    - `.gitignore` fixed for `google-services.json` and `*.jks`.
-    - `build.gradle.kts` no longer commits fallback passwords; env vars required for real releases.
-11. **New release fingerprints** (register in Firebase Console):
-    - SHA-1: `AD:33:B3:9B:9E:69:BF:AD:5E:5E:30:12:81:C6:02:34:A4:44:C1:8B`
-    - SHA-256: `05:63:6D:87:7C:C7:F0:F0:12:13:FE:9E:79:17:8C:31:B5:F3:DA:E1:93:B8:4A:01:EF:2C:B7:96:75:87:0D:BD`
+---
 
-### Architecture & code quality
-12. **Hilt DI consistency** — all ViewModels now inject `FirebaseAuth`, `FirebaseFirestore`, `FirebaseStorage` instead of calling `getInstance()`.
-13. **Firestore string literals moved to constants** — added `ROLE`, `ACTIVE`, `DESCRIPTION`, `ALARM_DAYS`, `LAST_WAKE_DATE`, `NOTIFICATIONS_ENABLED`, status enums, role enums.
-14. **Rank recomputation** — `SocialViewModel` recomputes and persists rank from sorted streaks.
-15. **TribeDetail listener clobber fixed** — `loadMembersForTribe` skips re-attaching if already listening to the same tribe.
-16. **Dead code removed** — `SafeNavigation.kt`, `UiState.kt`, `HomeViewModel.dismissAlarm/resetAlarm`, `HomeScreen.isAlarmRinging`, `AccountScreen.showToneMissing`.
-17. **Emojis removed from UI** — complies with `AGENTS.md` no-emoji rule.
-18. **Theme parent changed** to dark Material theme.
-19. **Lint cleanup** — redundant activity label removed, `NoCredentialException` handled.
+## Deployment status
 
-### Server-side reliability
-20. **Firebase Cloud Functions added** under `functions/`:
-    - `onProposalCreated` / `onProposalUpdated` — server-side auto-accept of expired proposals, updating **all** tribe members' `followedAlarmTime`.
-    - `joinTribeByInviteCode` — server-side invite-code validation and member creation.
-    - Deploy with `firebase deploy --only functions`.
-
-### Testing
-21. **Unit tests added**:
-    - `TimeUtilsTest` — 12h→24h conversion.
-    - `StreakCalculatorTest` — streak math.
-22. **Shared utilities extracted**:
-    - `TimeUtils.to24HourTime()`
-    - `StreakCalculator.computeNewStreak()`
-
-### Documentation
-23. **Full `Ref/` interview-prep package** created mirroring ContextIQ format.
-24. **TCS Prime quick-sheet** added and pushed.
+- **Firestore rules**: deployed to `meluko-routine` (includes the new `isTribeAdmin()` helper and leave/remove/delete-tribe permissions).
+- **Cloud Functions**: written and `npm install`'d in `functions/`, but **not deployed**. `meluko-routine` is on the free Spark plan; deploying Cloud Functions requires upgrading to Blaze (pay-as-you-go, still free at this app's scale, but it's a billing decision only the account owner can make). The user explicitly chose to skip this for now. To deploy later: upgrade the project to Blaze in the Firebase Console, then `cd functions && firebase deploy --only functions`.
+- **Push status**: new commits exist locally on `master` (`d61ebd4`, `d12077c`, `3fb4063`, `4a6e264`, plus doc updates) but were **not pushed to `origin/master`** automatically — check with the user and push explicitly if they want GitHub updated.
 
 ---
 
 ## Build status
 
 - `./gradlew assembleDebug` ✅
-- `./gradlew assembleRelease` ✅ (with `KEYSTORE_PASSWORD` / `KEY_PASSWORD` env vars)
 - `./gradlew test` ✅
-- `./gradlew lintDebug` ✅ (warnings remain for outdated AGP/Gradle/targetSdk versions)
+- `./gradlew lintDebug` ✅ (no new errors; pre-existing warnings for outdated AGP/Gradle/targetSdk versions remain)
+- **No live on-device/emulator test was done this session** — no `adb`/emulator available in this environment. The account-deletion re-auth flow, tribe leave/remove/delete flows, and battery/share intents should be manually verified on a device before any real release.
 
 ---
 
 ## Important manual follow-ups required
 
-1. **Firebase Console:**
-   - Rotate the exposed API key / OAuth client from the committed `google-services.json`.
-   - Download a fresh `google-services.json` and place it at `app/google-services.json` (do not commit).
-   - Register the new release SHA-1/SHA-256 fingerprints.
-2. **Deploy Cloud Functions:** `cd functions && npm install && firebase deploy --only functions`.
-3. **Wire client to Cloud Function join** (optional but recommended): replace `OnboardingViewModel.joinTribe()` client-side write with a callable to `joinTribeByInviteCode`.
-4. **Real release:** set `KEYSTORE_PASSWORD` / `KEY_PASSWORD` env vars and build with a new, secret keystore password.
-5. **Consider:** FCM push notifications, account deletion, leave tribe, Play Store privacy policy.
+1. **Decide on Blaze**: upgrade `meluko-routine` to Blaze if you want Cloud Functions (auto-accept proposals, server-side join, member-removal cleanup) actually running server-side. Until then, the app's client-side fallbacks (already in place) cover the same ground, just less robustly.
+2. **Firebase Console**: rotate the exposed API key / OAuth client from the old committed `google-services.json`, download a fresh one to `app/google-services.json` (gitignored, already present locally), register new release SHA-1/SHA-256 fingerprints.
+3. **Push to GitHub**: this session's commits are local-only so far.
+4. Privacy policy / terms of service links — still needed before Play Store submission.
+5. Rebuild release APK with the rotated keystore and re-upload to GitHub Releases once the above is done.
 
 ---
 
-## Known remaining gaps (acceptable for v1 demo, not blockers)
+## Known remaining gaps (acceptable for beta, not blockers)
 
+- Cloud Functions not deployed (see above) — client-side fallbacks cover auto-accept, join, and member-removal cleanup, just with slightly weaker guarantees (e.g. requires the affected client to be online to self-heal).
+- No FCM push notifications — proposals/vetoes/wake events still require the app to be open or a Firestore listener active.
+- No account-deletion confirmation beyond a single dialog (no "type DELETE to confirm" friction) — acceptable for beta scale.
 - Outdated dependency versions (AGP 9.2.1, Gradle 9.4.1, targetSdk 36 — lint warns).
-- `BootReceiver` still uses `FirebaseFirestore.getInstance()` directly (BroadcastReceiver).
-- Cloud Function join path not yet used by the Android client.
-- No runtime battery-optimization whitelist prompt.
-- No FCM push notifications.
-- No account deletion flow.
-- No automated CI/CD.
+- No automated CI/CD, no UI tests.
 
 ---
 
-## Files changed (high-level)
+## Files changed (high-level, this session)
 
-- `app/build.gradle.kts`
-- `app/.gitignore`, `.gitignore`
-- `app/src/main/AndroidManifest.xml`
-- `firestore.rules`
-- `app/src/main/java/com/alarm/meluko/auth/AuthViewModel.kt`
-- `app/src/main/java/com/alarm/meluko/alarm/{AlarmScheduler,AlarmReceiver,AlarmActivity,BootReceiver,MissedAlarmReceiver}.kt`
-- `app/src/main/java/com/alarm/meluko/data/{FirestoreConstants,AlarmCache}.kt`
-- `app/src/main/java/com/alarm/meluko/di/FirebaseModule.kt`
-- `app/src/main/java/com/alarm/meluko/ui/{HomeViewModel,HomeScreen,SocialViewModel,OnboardingViewModel,ProposalViewModel,AccountViewModel,SetFirstAlarmScreen,ProposeAlarmBottomSheet,AccountScreen,SocialScreen,TribeDetailScreen,OnboardingScreen}.kt`
-- `app/src/main/java/com/alarm/meluko/util/TimeUtils.kt`
-- `app/src/main/java/com/alarm/meluko/alarm/StreakCalculator.kt`
-- `app/src/main/res/values/themes.xml`
-- New: `functions/package.json`, `functions/index.js`, `functions/.gitignore`
-- New tests: `app/src/test/java/com/alarm/meluko/util/TimeUtilsTest.kt`, `app/src/test/java/com/alarm/meluko/alarm/StreakCalculatorTest.kt`
-- Deleted: `app/src/main/java/com/alarm/meluko/navigation/SafeNavigation.kt`, `app/src/main/java/com/alarm/meluko/ui/UiState.kt`
-- Docs: `Ref/Meluko_Master.md`, `Ref/interview/*.md`, `Ref/interview/quick-sheet-tcs.md`
+- `AndroidManifest.xml` — `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` permission.
+- `auth/AuthConstants.kt` (new), `auth/AuthViewModel.kt` — shared web client ID.
+- `ui/AccountScreen.kt`, `ui/AccountViewModel.kt` — delete account UI + flow, icon badges.
+- `ui/HomeScreen.kt` — battery banner, icon badges, streak celebration.
+- `ui/SocialScreen.kt`, `ui/SocialViewModel.kt` — `TribeMember.uid`/`isAdmin`, leave/remove/delete-tribe, stale-pointer self-heal, empty-state copy.
+- `ui/TribeDetailScreen.kt` — invite code display + share, manage-tribe section (leave/delete), per-member remove action.
+- `ui/ExpressiveUtils.kt` — `celebrateBurst()`, `rememberIncreaseTrigger()`.
+- `firestore.rules` — `isTribeAdmin()`, member/tribe delete permissions (deployed).
+- `functions/index.js` — `onMemberRemoved` trigger (not deployed).
+- `.ai/*.md` — this session's updates.

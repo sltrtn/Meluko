@@ -63,12 +63,20 @@
 
 ### ✅ Infrastructure
 - ✅ Firebase Crashlytics — crash reporting
-- ✅ Firestore security rules — deployed and tightened
+- ✅ Firestore security rules — deployed and tightened (now live on meluko-routine, incl. admin/leave/delete-tribe rules)
 - ✅ Debug TEST button (BuildConfig.DEBUG-gated)
-- ✅ Firebase Cloud Functions scaffold (auto-accept + join-by-code)
+- ✅ Firebase Cloud Functions scaffold (auto-accept + join-by-code + onMemberRemoved) — written, **not deployed** (project is on the free Spark plan; deploying requires upgrading to Blaze)
 - ✅ Unit tests for TimeUtils and StreakCalculator
 - ✅ Release signing config with env-var passwords
 - ✅ Local secret rotation — new keystore, google-services.json untracked
+
+### ✅ Beta-readiness pass (2026-10-08)
+- ✅ Account deletion flow (Google re-auth on stale session, best-effort data cleanup)
+- ✅ Battery-optimization whitelist banner (dismissible)
+- ✅ Leave tribe / admin remove-member / admin delete-tribe (last member only)
+- ✅ Invite-code share sheet + visible invite code on TribeDetailScreen
+- ✅ Client-side self-heal for stale tribe pointers (stands in for the undeployed onMemberRemoved function)
+- ✅ Fun-factor UI pass — icon badges replacing blank emoji-removal placeholders, streak celebration pulse, warmer empty-state copy (same layout/colors)
 
 ---
 
@@ -77,7 +85,7 @@
 ### 📦 V1 Ship (production-ready foundation)
 - All critical/high bugs fixed
 - Alarm system reliable through Doze/reboot/force-kill
-- Cloud Functions written, awaiting deployment
+- Firestore rules deployed; Cloud Functions written but not deployed (needs Blaze plan)
 - Secrets rotated locally, awaiting Firebase Console updates
 
 ---
@@ -85,20 +93,17 @@
 ## Future Milestones
 
 ### 🔄 Must do before real users / Play Store
-1. Deploy Cloud Functions (`cd functions && npm install && firebase deploy --only functions`)
+1. Upgrade meluko-routine to the Blaze plan, then deploy Cloud Functions (`cd functions && firebase deploy --only functions`)
 2. Rotate Firebase API key + download fresh `google-services.json`
 3. Register new release SHA-1/SHA-256 fingerprints in Firebase Console
-4. Battery optimization whitelist prompt (OEMs kill exact alarms)
-5. Privacy policy and terms of service links
-6. Account deletion flow (required by Google Play policy)
-7. Rebuild release APK with new keystore and re-upload to GitHub Releases
+4. Privacy policy and terms of service links
+5. Rebuild release APK with new keystore and re-upload to GitHub Releases
 
 ### ⏳ Should do for polished v1
 - FCM push notifications (proposals, vetoes, acceptance, wake events)
-- Invite code sharing (copy/share sheet)
-- Leave tribe / remove member / delete tribe
-- Wire `joinTribe` client flow to the Cloud Function
-- Remove client-side auto-accept once Cloud Function is trusted
+- Wire `joinTribe` client flow to the Cloud Function (once Blaze is enabled)
+- Remove client-side auto-accept once Cloud Function is trusted (once Blaze is enabled)
+- Replace the client-side stale-tribe-pointer self-heal with the onMemberRemoved trigger once functions are deployed
 
 ### ⏳ Nice-to-have features
 - Notification deep links (tap notification → open specific screen)

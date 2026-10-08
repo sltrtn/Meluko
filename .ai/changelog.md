@@ -4,6 +4,54 @@
 
 ---
 
+## 2026-10-08 — Beta-Readiness Pass
+
+**Added:**
+- Account deletion flow (`AccountViewModel.deleteAccount`) — best-effort tribe
+  leave + Firestore doc cleanup + Storage photo delete, then deletes the
+  Firebase Auth user, re-prompting Google Sign-In if the session is stale
+  (`FirebaseAuthRecentLoginRequiredException`). Required by Google Play policy.
+- Battery-optimization whitelist banner on HomeScreen (dismissible,
+  `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`) — many OEMs kill background exact
+  alarms otherwise.
+- Leave tribe, admin remove-member, and admin delete-tribe (only once the
+  admin is the last member) in `SocialViewModel`, with Firestore-rule-safe
+  write ordering inside each transaction.
+- `isTribeAdmin()` Firestore rule helper; members can now delete their own
+  membership or be deleted by an admin; tribes can be deleted by their admin
+  once `memberCount <= 1`.
+- `onMemberRemoved` Cloud Function trigger (clears a removed/left user's
+  `primaryTribeId` server-side) — **written but not deployed** (see below).
+- Client-side self-heal in `SocialViewModel`: if the members listener gets
+  `PERMISSION_DENIED` or the tribe doc no longer exists, the app clears its
+  own stale `primaryTribeId` instead of getting stuck in an error loop.
+  Stands in for `onMemberRemoved` until Cloud Functions are deployed.
+- Invite-code share sheet (`Intent.ACTION_SEND`) and visible invite code on
+  TribeDetailScreen — previously generated at tribe creation but never shown
+  to the user again.
+- `AuthConstants.WEB_CLIENT_ID` — deduplicated from `AuthViewModel` so
+  `AccountViewModel` can reuse it for re-auth.
+- `celebrateBurst()` / `rememberIncreaseTrigger()` in `ExpressiveUtils` — a
+  reusable springy pop animation, wired to the streak stat on Home/Account.
+- Icon badges (flame / sun / trophy) replacing the blank emoji-removal
+  placeholders on Home/Account stat cards and the Consistency card.
+- Warmer empty-state copy in SocialScreen.
+
+**Deployed:**
+- Firestore rules — live on `meluko-routine`.
+
+**Not deployed (needs a decision):**
+- Cloud Functions require upgrading `meluko-routine` from Spark to Blaze
+  (billing). User chose to skip this for now — functions are written and
+  `npm install`'d in `functions/`, ready to deploy once Blaze is enabled.
+
+**Housekeeping:**
+- Committed ~6 weeks of uncommitted work from the 2026-08-27 audit session
+  (see below) that had never been committed — verified it still builds and
+  passes tests first.
+
+---
+
 ## 2026-08-27 — Production Audit + Fixes
 
 **Added:**
