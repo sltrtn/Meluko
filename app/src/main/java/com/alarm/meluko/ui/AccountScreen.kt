@@ -27,6 +27,10 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
@@ -42,6 +46,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.alarm.meluko.auth.AuthViewModel
 import com.alarm.meluko.ui.theme.DefaultFontFamily
@@ -83,6 +88,8 @@ fun AccountScreen(
     var showEditProfile by remember { mutableStateOf(false) }
     var showNotifications by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
+    var showDeleteAccountConfirm by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     // Easter egg — tap MELUKO 7 times in the About dialog
     var easterEggTaps by remember { mutableStateOf(0) }
@@ -370,6 +377,54 @@ fun AccountScreen(
         )
     }
 
+    // ── Delete Account Dialog ─────────────────────────────────────────────────
+    if (showDeleteAccountConfirm) {
+        AlertDialog(
+            onDismissRequest = { if (!isUpdating) showDeleteAccountConfirm = false },
+            title = {
+                Text(
+                    text = "Delete Account?",
+                    fontFamily = DefaultFontFamily,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "This permanently deletes your profile, streaks, and tribe memberships. This can't be undone.",
+                        fontFamily = BodyFontFamily,
+                        fontSize = 13.sp
+                    )
+                    if (isUpdating) {
+                        Spacer(Modifier.height(4.dp))
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        accountViewModel.deleteAccount(context) {
+                            showDeleteAccountConfirm = false
+                            authViewModel.signOut()
+                        }
+                    },
+                    enabled = !isUpdating
+                ) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteAccountConfirm = false },
+                    enabled = !isUpdating
+                ) {
+                    Text("Cancel", fontWeight = FontWeight.Bold, fontFamily = DefaultFontFamily)
+                }
+            }
+        )
+    }
+
     // ── Main Screen ───────────────────────────────────────────────────────────
     Box(modifier = Modifier.fillMaxSize()) {
         Surface(
@@ -473,9 +528,9 @@ fun AccountScreen(
                     .padding(horizontal = 20.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                AccountStatCard("", "$totalWakes", "Wake-ups", Modifier.weight(1f))
-                AccountStatCard("", "$streakDays d", "Streak", Modifier.weight(1f))
-                AccountStatCard("", "$bestStreak d", "Best", Modifier.weight(1f))
+                AccountStatCard(Icons.Filled.WbSunny, "$totalWakes", "Wake-ups", Modifier.weight(1f))
+                AccountStatCard(Icons.Filled.LocalFireDepartment, "$streakDays d", "Streak", Modifier.weight(1f))
+                AccountStatCard(Icons.Filled.EmojiEvents, "$bestStreak d", "Best", Modifier.weight(1f))
             }
 
             Spacer(Modifier.height(24.dp))
@@ -621,6 +676,25 @@ fun AccountScreen(
                 )
             }
 
+            Spacer(Modifier.height(12.dp))
+
+            // Danger zone
+            Surface(
+                modifier = Modifier
+                    .padding(horizontal = 20.dp)
+                    .fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh
+            ) {
+                SettingsRow(
+                    icon = Icons.Filled.DeleteForever,
+                    label = "Delete Account",
+                    tint = MaterialTheme.colorScheme.error,
+                    textColor = MaterialTheme.colorScheme.error,
+                    onClick = { showDeleteAccountConfirm = true }
+                )
+            }
+
             Spacer(Modifier.height(120.dp))
         }
     }
@@ -652,7 +726,7 @@ private fun AccountPill(
 
 @Composable
 private fun AccountStatCard(
-    emoji: String,
+    icon: ImageVector,
     value: String,
     label: String,
     modifier: Modifier = Modifier
@@ -669,7 +743,15 @@ private fun AccountStatCard(
                 .padding(14.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(emoji, fontSize = 18.sp)
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
+            }
             Column {
                 Text(
                     text = value,

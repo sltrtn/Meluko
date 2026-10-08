@@ -30,9 +30,11 @@ import com.alarm.meluko.ui.theme.MelukoTheme
 enum class WakeStatus { Awake, Sleeping, Missed }
 
 data class TribeMember(
+    val uid:        String = "",
     val name:       String,
     val photoUrl:   String? = null,
     val isYou:      Boolean,
+    val isAdmin:    Boolean = false,
     val streakDays: Int,
     val status:     WakeStatus,
     val wakeTime:   String? = null

@@ -9,7 +9,7 @@
  *   firebase deploy --only functions
  */
 
-const {onDocumentCreated, onDocumentUpdated} = require("firebase-functions/v2/firestore");
+const {onDocumentCreated, onDocumentUpdated, onDocumentDeleted} = require("firebase-functions/v2/firestore");
 const {onCall} = require("firebase-functions/v2/https");
 const {getFirestore, FieldValue} = require("firebase-admin/firestore");
 const {initializeApp} = require("firebase-admin/app");
@@ -178,4 +178,30 @@ exports.joinTribeByInviteCode = onCall(
     }
 );
 
+/**
+ * Trigered when a member doc is deleted (user left the tribe, was removed by
+ * an admin, or the tribe itself was deleted).
+ *
+ * Clears the user's `primaryTribeId` pointer so their Home/Social screens
+ * stop trying to read a tribe they're no longer part of. Client-side rules
+ * can't do this cross-user write, so it has to happen server-side.
+ */
+exports.onMemberRemoved = onDocumentDeleted(
+    {
+      document: `${TRIBES}/{tribeId}/${MEMBERS}/{uid}`,
+      region: "asia-south1",
+    },
+    async (event) => {
+      const {tribeId, uid} = event.params;
+      const userAlarmRef = db.collection(USER_ALARMS).doc(uid);
+      const userAlarmSnap = await userAlarmRef.get();
+      if (!userAlarmSnap.exists) return;
+      if (userAlarmSnap.get(PRIMARY_TRIBE_ID) !== tribeId) return;
+
+      await userAlarmRef.set({
+        [PRIMARY_TRIBE_ID]: null,
+        active: false,
+      }, {merge: true});
+    }
+);
 

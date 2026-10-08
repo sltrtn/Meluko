@@ -10,8 +10,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,8 +31,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.Manifest
+import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
@@ -243,6 +253,77 @@ fun HomeScreenContent(
                 while (true) {
                     delay(1_000L)
                     exactAlarmGranted = AlarmScheduler(context).canScheduleExactAlarms()
+                }
+            }
+
+            // ── Battery optimization banner ─────────────────────────────────────
+            // OEMs (Xiaomi, Samsung, OnePlus, etc.) kill background alarms unless
+            // the app is whitelisted from battery optimization. Dismissible —
+            // unlike exact-alarm permission, this is a recommendation, not a hard
+            // requirement, so we respect "not now".
+            val prefs = remember { context.getSharedPreferences("meluko_prefs", Context.MODE_PRIVATE) }
+            var batteryBannerDismissed by remember {
+                mutableStateOf(prefs.getBoolean("battery_banner_dismissed", false))
+            }
+            var batteryOptIgnored by remember { mutableStateOf(isIgnoringBatteryOptimizations(context)) }
+
+            LaunchedEffect(Unit) {
+                while (true) {
+                    delay(1_000L)
+                    batteryOptIgnored = isIgnoringBatteryOptimizations(context)
+                }
+            }
+
+            if (!batteryOptIgnored && !batteryBannerDismissed) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Battery optimization may delay your alarm. Whitelist Meluko for reliable wake-ups.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Row {
+                            TextButton(onClick = {
+                                batteryBannerDismissed = true
+                                prefs.edit().putBoolean("battery_banner_dismissed", true).apply()
+                            }) {
+                                Text(
+                                    text = "NOT NOW",
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            TextButton(onClick = {
+                                val intent = Intent(
+                                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                                    Uri.parse("package:${context.packageName}")
+                                )
+                                context.startActivity(intent)
+                            }) {
+                                Text(
+                                    text = "ALLOW",
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
@@ -539,15 +620,15 @@ private fun StatsRow(
         modifier              = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        StatCard("", "$streakDays", "Streak",    MaterialTheme.colorScheme.primaryContainer,    MaterialTheme.colorScheme.onPrimaryContainer,   Modifier.weight(1f))
-        StatCard("", "$totalWakes", "Wake-ups",  MaterialTheme.colorScheme.secondaryContainer,  MaterialTheme.colorScheme.onSecondaryContainer,  Modifier.weight(1f))
-        StatCard("", "#$rank",      "Rank",      MaterialTheme.colorScheme.tertiaryContainer,   MaterialTheme.colorScheme.onTertiaryContainer,   Modifier.weight(1f))
+        StatCard(Icons.Filled.LocalFireDepartment, "$streakDays", "Streak",    MaterialTheme.colorScheme.primaryContainer,    MaterialTheme.colorScheme.onPrimaryContainer,   Modifier.weight(1f))
+        StatCard(Icons.Filled.WbSunny,             "$totalWakes", "Wake-ups",  MaterialTheme.colorScheme.secondaryContainer,  MaterialTheme.colorScheme.onSecondaryContainer,  Modifier.weight(1f))
+        StatCard(Icons.Filled.EmojiEvents,         "#$rank",      "Rank",      MaterialTheme.colorScheme.tertiaryContainer,   MaterialTheme.colorScheme.onTertiaryContainer,   Modifier.weight(1f))
     }
 }
 
 @Composable
 private fun StatCard(
-    emoji:          String,
+    icon:           androidx.compose.ui.graphics.vector.ImageVector,
     value:          String,
     label:          String,
     containerColor: Color,
@@ -566,7 +647,15 @@ private fun StatCard(
                 .padding(14.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(emoji, fontSize = 20.sp)
+            Box(
+                modifier = Modifier
+                    .size(26.dp)
+                    .clip(CircleShape)
+                    .background(contentColor.copy(alpha = 0.16f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(15.dp))
+            }
             Column {
                 Text(
                     text       = value,
@@ -587,6 +676,11 @@ private fun StatCard(
             }
         }
     }
+}
+
+private fun isIgnoringBatteryOptimizations(context: Context): Boolean {
+    val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+    return powerManager.isIgnoringBatteryOptimizations(context.packageName)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -649,8 +743,8 @@ fun ConsistencyCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                ConsistencyMetric("", "$streakDays", "Current streak")
-                ConsistencyMetric("", "$totalWakes", "Total wake-ups")
+                ConsistencyMetric(Icons.Filled.LocalFireDepartment, "$streakDays", "Current streak", MaterialTheme.colorScheme.primary)
+                ConsistencyMetric(Icons.Filled.WbSunny, "$totalWakes", "Total wake-ups", MaterialTheme.colorScheme.tertiary)
             }
         }
     }
@@ -658,12 +752,13 @@ fun ConsistencyCard(
 
 @Composable
 private fun ConsistencyMetric(
-    emoji: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     value: String,
-    label: String
+    label: String,
+    tint: Color
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(emoji, fontSize = 24.sp)
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
         Spacer(Modifier.height(4.dp))
         Text(
             text = value,

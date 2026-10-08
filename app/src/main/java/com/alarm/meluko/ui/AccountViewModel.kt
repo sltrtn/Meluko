@@ -1,12 +1,20 @@
 package com.alarm.meluko.ui
 
+import android.content.Context
 import android.net.Uri
 import android.util.Log
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.alarm.meluko.auth.AuthConstants
 import com.alarm.meluko.data.FirestoreCollection
 import com.alarm.meluko.data.FirestoreField
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
+import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.SetOptions
@@ -204,6 +212,94 @@ class AccountViewModel @Inject constructor(
                 _error.value = "Failed to update alarm tone"
             }
         }
+    }
+
+    /**
+     * Permanently delete the account: best-effort tribe cleanup, Firestore
+     * docs, profile photo, then the Firebase Auth user itself. Required by
+     * Google Play policy before any real release.
+     *
+     * Firebase requires a *recent* login to delete the auth user — if the
+     * cached session is stale, this re-prompts Google Sign-In and retries.
+     */
+    fun deleteAccount(context: Context, onSuccess: () -> Unit) {
+        val currentUid = uid.takeIf { it.isNotEmpty() } ?: return
+        viewModelScope.launch {
+            _isUpdating.value = true
+            _error.value = null
+            try {
+                leaveTribeBestEffort(currentUid)
+
+                try {
+                    storage.reference.child("profile_photos/$currentUid.jpg").delete().await()
+                } catch (e: Exception) {
+                    Log.w("AccountVM", "Profile photo delete failed (non-critical)", e)
+                }
+
+                try {
+                    db.collection(FirestoreCollection.USERS).document(currentUid).delete().await()
+                } catch (e: Exception) {
+                    Log.w("AccountVM", "User doc delete failed (non-critical)", e)
+                }
+                try {
+                    db.collection(FirestoreCollection.USER_ALARMS).document(currentUid).delete().await()
+                } catch (e: Exception) {
+                    Log.w("AccountVM", "User alarm doc delete failed (non-critical)", e)
+                }
+
+                try {
+                    auth.currentUser?.delete()?.await()
+                } catch (e: FirebaseAuthRecentLoginRequiredException) {
+                    reauthenticateWithGoogle(context)
+                    auth.currentUser?.delete()?.await()
+                }
+
+                onSuccess()
+            } catch (e: Exception) {
+                Log.w("AccountVM", "Account deletion failed", e)
+                _error.value = "Failed to delete account: ${e.message}"
+            } finally {
+                _isUpdating.value = false
+            }
+        }
+    }
+
+    private suspend fun leaveTribeBestEffort(currentUid: String) {
+        try {
+            val userAlarmSnap = db.collection(FirestoreCollection.USER_ALARMS).document(currentUid).get().await()
+            val primaryTribeId = userAlarmSnap.getString(FirestoreField.PRIMARY_TRIBE_ID) ?: return
+
+            val tribeRef = db.collection(FirestoreCollection.TRIBES).document(primaryTribeId)
+            val memberRef = tribeRef.collection(FirestoreCollection.MEMBERS).document(currentUid)
+
+            db.runTransaction { transaction ->
+                val tribeSnap = transaction.get(tribeRef)
+                if (tribeSnap.exists()) {
+                    val currentCount = tribeSnap.getLong(FirestoreField.MEMBER_COUNT)?.toInt() ?: 1
+                    if (currentCount <= 1) {
+                        transaction.delete(tribeRef)
+                    } else {
+                        transaction.update(tribeRef, FirestoreField.MEMBER_COUNT, currentCount - 1)
+                    }
+                }
+                transaction.delete(memberRef)
+            }.await()
+        } catch (e: Exception) {
+            Log.w("AccountVM", "Leaving tribe during account deletion failed (non-critical)", e)
+        }
+    }
+
+    private suspend fun reauthenticateWithGoogle(context: Context) {
+        val googleIdOption = GetGoogleIdOption.Builder()
+            .setFilterByAuthorizedAccounts(true)
+            .setServerClientId(AuthConstants.WEB_CLIENT_ID)
+            .build()
+        val request = GetCredentialRequest.Builder().addCredentialOption(googleIdOption).build()
+        val credentialManager = CredentialManager.create(context)
+        val result = credentialManager.getCredential(context, request)
+        val googleIdToken = GoogleIdTokenCredential.createFrom(result.credential.data).idToken
+        val firebaseCredential = GoogleAuthProvider.getCredential(googleIdToken, null)
+        auth.currentUser?.reauthenticate(firebaseCredential)?.await()
     }
 
     override fun onCleared() {

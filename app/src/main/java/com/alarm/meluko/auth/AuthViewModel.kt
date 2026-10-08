@@ -46,8 +46,7 @@ class AuthViewModel @Inject constructor(
     private val firebaseAuth: FirebaseAuth
 ) : ViewModel() {
 
-    private val webClientId =
-        "1049841099865-q6ube9e1obc4b8vslu5dekqlb776k052.apps.googleusercontent.com"
+    private val webClientId = AuthConstants.WEB_CLIENT_ID
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()

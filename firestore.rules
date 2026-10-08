@@ -18,6 +18,12 @@ service cloud.firestore {
       );
     }
 
+    function isTribeAdmin(tribeId) {
+      return isAuthenticated() && get(
+        /databases/$(database)/documents/tribes/$(tribeId)/members/$(request.auth.uid)
+      ).data.role == 'admin';
+    }
+
     function isValidProposalStatusTransition(oldStatus, newStatus) {
       return oldStatus == 'pending' && (newStatus == 'vetoed' || newStatus == 'accepted');
     }
@@ -40,18 +46,20 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update: if isTribeMember(tribeId);
-      allow delete: if false;
+      // Only the admin can delete a tribe, and only once they're the last member
+      // (prevents orphaning other members' data).
+      allow delete: if isTribeAdmin(tribeId) && resource.data.memberCount <= 1;
 
       // ===== TRIBE MEMBERS =====
       // Any tribe member can read the member list.
       // Each user creates/updates only their own member document.
-      // Deletion is not allowed.
+      // A member can delete their own membership (leave); an admin can remove others.
       match /members/{memberUid} {
         allow read: if isTribeMember(tribeId);
         allow create: if isOwner(memberUid)
           && !exists(/databases/$(database)/documents/tribes/$(tribeId)/members/$(memberUid));
         allow update: if isOwner(memberUid);
-        allow delete: if false;
+        allow delete: if isOwner(memberUid) || isTribeAdmin(tribeId);
       }
 
       // ===== PROPOSALS =====

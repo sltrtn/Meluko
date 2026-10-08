@@ -1,5 +1,6 @@
 package com.alarm.meluko.ui
 
+import android.content.Intent
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -10,11 +11,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.PersonRemove
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -49,9 +55,17 @@ fun TribeDetailScreen(
     var tribeName by remember { mutableStateOf("") }
     var tribeAlarmTime by remember { mutableStateOf("--:--") }
     var tribeMemberCount by remember { mutableStateOf(0) }
+    var tribeInviteCode by remember { mutableStateOf("") }
 
     // Real-time members from SocialViewModel
     val members by socialViewModel.members.collectAsState()
+    val isAdmin = members.any { it.isYou && it.isAdmin }
+    val isTribeActionInProgress by socialViewModel.isTribeActionInProgress.collectAsState()
+
+    val context = LocalContext.current
+    var showLeaveConfirm by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    var memberPendingRemoval by remember { mutableStateOf<TribeMember?>(null) }
 
     // Proposal state from ProposalViewModel
     val activeProposal by proposalViewModel.activeProposal.collectAsState()
@@ -103,6 +117,7 @@ fun TribeDetailScreen(
                         tribeName = snap.getString(FirestoreField.NAME) ?: tribeId
                         tribeAlarmTime = snap.getString(FirestoreField.ALARM_TIME) ?: "--:--"
                         tribeMemberCount = snap.getLong(FirestoreField.MEMBER_COUNT)?.toInt() ?: 0
+                        tribeInviteCode = snap.getString(FirestoreField.INVITE_CODE) ?: ""
                     }
                 }
             }
@@ -122,6 +137,74 @@ fun TribeDetailScreen(
             snackbarHostState.showSnackbar(it)
             proposalViewModel.clearError()
         }
+    }
+
+    val tribeActionError by socialViewModel.tribeActionError.collectAsState()
+    LaunchedEffect(tribeActionError) {
+        tribeActionError?.let {
+            snackbarHostState.showSnackbar(it)
+            socialViewModel.clearTribeActionError()
+        }
+    }
+
+    // Leave tribe confirmation
+    if (showLeaveConfirm) {
+        AlertDialog(
+            onDismissRequest = { showLeaveConfirm = false },
+            title = { Text("Leave Tribe?", fontFamily = DefaultFontFamily, fontWeight = FontWeight.Bold) },
+            text = { Text("You'll stop following $tribeName's alarm and lose your streak here.", fontFamily = BodyFontFamily) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showLeaveConfirm = false
+                    socialViewModel.leaveTribe(tribeId, onSuccess = onBack)
+                }) {
+                    Text("Leave", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLeaveConfirm = false }) { Text("Cancel", fontFamily = DefaultFontFamily) }
+            }
+        )
+    }
+
+    // Delete tribe confirmation
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete Tribe?", fontFamily = DefaultFontFamily, fontWeight = FontWeight.Bold) },
+            text = { Text("This permanently deletes $tribeName. This can't be undone.", fontFamily = BodyFontFamily) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteConfirm = false
+                    socialViewModel.deleteTribe(tribeId, onSuccess = onBack)
+                }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel", fontFamily = DefaultFontFamily) }
+            }
+        )
+    }
+
+    // Remove member confirmation
+    memberPendingRemoval?.let { target ->
+        AlertDialog(
+            onDismissRequest = { memberPendingRemoval = null },
+            title = { Text("Remove ${target.name}?", fontFamily = DefaultFontFamily, fontWeight = FontWeight.Bold) },
+            text = { Text("They'll be removed from $tribeName and stop following its alarm.", fontFamily = BodyFontFamily) },
+            confirmButton = {
+                TextButton(onClick = {
+                    memberPendingRemoval = null
+                    socialViewModel.removeMember(tribeId, target.uid, onSuccess = {})
+                }) {
+                    Text("Remove", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { memberPendingRemoval = null }) { Text("Cancel", fontFamily = DefaultFontFamily) }
+            }
+        )
     }
 
     // Propose sheet
@@ -226,6 +309,26 @@ fun TribeDetailScreen(
                         )
                     }
                 },
+                actions = {
+                    if (tribeInviteCode.isNotBlank()) {
+                        IconButton(onClick = {
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(
+                                    Intent.EXTRA_TEXT,
+                                    "Join my tribe \"$tribeName\" on Meluko! Use invite code: $tribeInviteCode"
+                                )
+                            }
+                            context.startActivity(Intent.createChooser(shareIntent, "Share invite code"))
+                        }) {
+                            Icon(
+                                imageVector = Icons.Filled.Share,
+                                contentDescription = "Share invite code",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 )
@@ -258,6 +361,23 @@ fun TribeDetailScreen(
                         fontFamily = DefaultFontFamily,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
+                    if (tribeInviteCode.isNotBlank()) {
+                        Spacer(Modifier.height(12.dp))
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.12f)
+                        ) {
+                            Text(
+                                text = "INVITE CODE  ·  $tribeInviteCode",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = DefaultFontFamily,
+                                letterSpacing = 1.sp,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                            )
+                        }
+                    }
                 }
             }
 
@@ -312,12 +432,90 @@ fun TribeDetailScreen(
                         photoUrl = member.photoUrl,
                         streak = member.streakDays,
                         isYou = member.isYou,
+                        canRemove = isAdmin && !member.isYou,
+                        onRemoveClick = { memberPendingRemoval = member },
                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
                     )
                 }
             }
 
+            Spacer(Modifier.height(24.dp))
+
+            // ── Manage Tribe ──────────────────────────────────────────────────
+            Text(
+                text = "Manage Tribe",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = DefaultFontFamily,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                letterSpacing = 0.5.sp,
+                modifier = Modifier.padding(horizontal = 20.dp)
+            )
+            Spacer(Modifier.height(10.dp))
+            Surface(
+                modifier = Modifier
+                    .padding(horizontal = 20.dp)
+                    .fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.errorContainer
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    if (isAdmin && tribeMemberCount <= 1) {
+                        TribeDangerRow(
+                            icon = Icons.Filled.DeleteForever,
+                            label = "Delete Tribe",
+                            enabled = !isTribeActionInProgress,
+                            onClick = { showDeleteConfirm = true }
+                        )
+                    } else {
+                        TribeDangerRow(
+                            icon = Icons.AutoMirrored.Filled.ExitToApp,
+                            label = "Leave Tribe",
+                            enabled = !isTribeActionInProgress,
+                            onClick = { showLeaveConfirm = true }
+                        )
+                    }
+                }
+            }
+
             Spacer(Modifier.height(100.dp))
+        }
+    }
+}
+
+@Composable
+private fun TribeDangerRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().pressScale(),
+        color = androidx.compose.ui.graphics.Color.Transparent,
+        onClick = onClick,
+        enabled = enabled
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.size(20.dp)
+            )
+            Text(
+                text = label,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = DefaultFontFamily,
+                color = MaterialTheme.colorScheme.onErrorContainer
+            )
         }
     }
 }
@@ -329,6 +527,8 @@ private fun TribeDetailLeaderboardRow(
     photoUrl: String?,
     streak: Int,
     isYou: Boolean,
+    canRemove: Boolean = false,
+    onRemoveClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val medal = when (rank) { 1 -> "1st"; 2 -> "2nd"; 3 -> "3rd"; else -> null }
@@ -377,6 +577,16 @@ private fun TribeDetailLeaderboardRow(
                 fontFamily = DefaultFontFamily,
                 color = MaterialTheme.colorScheme.onSurface
             )
+            if (canRemove) {
+                IconButton(onClick = onRemoveClick, modifier = Modifier.size(28.dp)) {
+                    Icon(
+                        imageVector = Icons.Filled.PersonRemove,
+                        contentDescription = "Remove $name",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
         }
     }
 }
