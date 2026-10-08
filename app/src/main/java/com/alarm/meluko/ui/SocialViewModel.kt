@@ -75,7 +75,17 @@ class SocialViewModel @Inject constructor(
             .addSnapshotListener { snap, error ->
                 if (error != null) {
                     Log.w("SocialVM", "Members listener error", error)
-                    _uiState.value = SocialUiState.Error("Failed to load members: ${error.message}")
+                    // No longer a member (removed by an admin, or the tribe was
+                    // deleted) — Cloud Functions aren't deployed on this project
+                    // to clear our pointer server-side, so self-heal here.
+                    if (error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                        memberRegistration?.remove()
+                        memberRegistration = null
+                        currentMemberTribeId = null
+                        clearStaleTribePointer(tribeId)
+                    } else {
+                        _uiState.value = SocialUiState.Error("Failed to load members: ${error.message}")
+                    }
                     return@addSnapshotListener
                 }
                 if (snap != null) {
@@ -104,6 +114,34 @@ class SocialViewModel @Inject constructor(
                 }
                 _uiState.value = SocialUiState.Success(members = _members.value, tribes = _tribes.value)
             }
+    }
+
+    /**
+     * Clears our own user_alarms.primaryTribeId when it points at a tribe we
+     * can no longer read (removed by an admin) or that no longer exists
+     * (deleted). Normally a Cloud Function trigger does this server-side,
+     * but this project doesn't have Cloud Functions deployed (requires the
+     * Blaze billing plan), so it's handled client-side as a self-heal.
+     */
+    private fun clearStaleTribePointer(tribeId: String) {
+        val currentUid = uid.takeIf { it.isNotEmpty() } ?: return
+        viewModelScope.launch {
+            try {
+                val userAlarmRef = db.collection(FirestoreCollection.USER_ALARMS).document(currentUid)
+                val snap = userAlarmRef.get().await()
+                if (snap.getString(FirestoreField.PRIMARY_TRIBE_ID) == tribeId) {
+                    userAlarmRef.set(
+                        mapOf(FirestoreField.PRIMARY_TRIBE_ID to null, FirestoreField.ACTIVE to false),
+                        SetOptions.merge()
+                    ).await()
+                }
+            } catch (e: Exception) {
+                Log.w("SocialVM", "Failed to clear stale tribe pointer", e)
+            }
+            _tribes.value = emptyList()
+            _members.value = emptyList()
+            _uiState.value = SocialUiState.Success(members = emptyList(), tribes = emptyList())
+        }
     }
 
     private fun recomputeOwnRankIfNeeded(tribeId: String, sortedMembers: List<TribeMember>) {
@@ -156,6 +194,9 @@ class SocialViewModel @Inject constructor(
                             _tribes.value = listOf(
                                 TribeProgress(primaryTribeId, name, photoUrl, awakeCount, memberCount)
                             )
+                        } else if (tribeSnap != null && !tribeSnap.exists()) {
+                            // Tribe was deleted — clear our stale pointer.
+                            clearStaleTribePointer(primaryTribeId)
                         }
                     }
 
