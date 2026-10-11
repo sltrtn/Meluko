@@ -16,6 +16,8 @@ object AlarmCache {
     private const val KEY_ALARM_TIME = "alarm_time"
     private const val KEY_TRIBE_ID = "tribe_id"
     private const val KEY_ALARM_TONE_URI = "alarm_tone_uri"
+    private const val KEY_ALARM_TONE_TITLE = "alarm_tone_title"
+    private const val KEY_ALARM_TONE_CHOSEN = "alarm_tone_chosen"
 
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -34,12 +36,23 @@ object AlarmCache {
     fun getTribeId(context: Context): String? =
         prefs(context).getString(KEY_TRIBE_ID, null)
 
-    fun saveAlarmToneUri(context: Context, uri: String) {
-        prefs(context).edit().putString(KEY_ALARM_TONE_URI, uri).apply()
+    /** Tone is device-local (content URIs don't exist on other devices), so it lives here, not in Firestore. Null = system default. */
+    fun saveAlarmTone(context: Context, uri: String?, title: String?) {
+        prefs(context).edit()
+            .putString(KEY_ALARM_TONE_URI, uri)
+            .putString(KEY_ALARM_TONE_TITLE, title)
+            .putBoolean(KEY_ALARM_TONE_CHOSEN, true)
+            .apply()
     }
+
+    fun hasChosenAlarmTone(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_ALARM_TONE_CHOSEN, false)
 
     fun getAlarmToneUri(context: Context): String? =
         prefs(context).getString(KEY_ALARM_TONE_URI, null)
+
+    fun getAlarmToneTitle(context: Context): String? =
+        prefs(context).getString(KEY_ALARM_TONE_TITLE, null)
 
     fun clear(context: Context) {
         prefs(context).edit().clear().apply()

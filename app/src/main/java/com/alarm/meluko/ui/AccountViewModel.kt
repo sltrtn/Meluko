@@ -1,6 +1,8 @@
 package com.alarm.meluko.ui
 
 import android.content.Context
+import com.alarm.meluko.data.AlarmCache
+import dagger.hilt.android.qualifiers.ApplicationContext
 import android.net.Uri
 import android.util.Log
 import androidx.credentials.CredentialManager
@@ -28,6 +30,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AccountViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val auth: FirebaseAuth,
     private val db: FirebaseFirestore,
     private val storage: FirebaseStorage
@@ -68,8 +71,11 @@ class AccountViewModel @Inject constructor(
     private val _notificationsEnabled = MutableStateFlow(true)
     val notificationsEnabled = _notificationsEnabled.asStateFlow()
 
-    private val _alarmToneUri = MutableStateFlow<String?>(null)
+    private val _alarmToneUri = MutableStateFlow(AlarmCache.getAlarmToneUri(appContext))
     val alarmToneUri = _alarmToneUri.asStateFlow()
+
+    private val _alarmToneTitle = MutableStateFlow(AlarmCache.getAlarmToneTitle(appContext))
+    val alarmToneTitle = _alarmToneTitle.asStateFlow()
 
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
@@ -114,7 +120,11 @@ class AccountViewModel @Inject constructor(
                     return@addSnapshotListener
                 }
                 val primaryTribeId = userAlarmSnap?.getString(FirestoreField.PRIMARY_TRIBE_ID)
-                _alarmToneUri.value = userAlarmSnap?.getString(FirestoreField.ALARM_TONE_URI)
+                // Legacy: tones used to be stored in Firestore. Migrate once into the local cache.
+                val legacyTone = userAlarmSnap?.getString(FirestoreField.ALARM_TONE_URI)
+                if (legacyTone != null && !AlarmCache.hasChosenAlarmTone(appContext)) {
+                    updateAlarmTone(legacyTone, null)
+                }
                 if (primaryTribeId != null) {
                     memberRegistration?.remove()
                     memberRegistration = db.collection(FirestoreCollection.TRIBES).document(primaryTribeId)
@@ -200,18 +210,11 @@ class AccountViewModel @Inject constructor(
         }
     }
 
-    fun updateAlarmTone(toneUri: String?) {
-        if (uid.isEmpty()) return
-        viewModelScope.launch {
-            try {
-                db.collection(FirestoreCollection.USER_ALARMS).document(uid)
-                    .update(FirestoreField.ALARM_TONE_URI, toneUri).await()
-                _alarmToneUri.value = toneUri
-            } catch (e: Exception) {
-                Log.w("AccountVM", "Alarm tone update failed", e)
-                _error.value = "Failed to update alarm tone"
-            }
-        }
+    /** Tone is device-local, so it's stored on-device only. [title] null = unknown/default. */
+    fun updateAlarmTone(toneUri: String?, title: String?) {
+        AlarmCache.saveAlarmTone(appContext, toneUri, title)
+        _alarmToneUri.value = toneUri
+        _alarmToneTitle.value = title
     }
 
     /**

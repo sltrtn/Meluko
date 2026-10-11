@@ -4,6 +4,24 @@
 
 ---
 
+## 2026-10-11 — Alarm Screen + Tone Overhaul
+
+**Fixed:**
+- Back button no longer dismisses the ringing alarm (swipe is the only way out).
+- Alarm audio now uses `USAGE_ALARM` via `MediaPlayer` (`AlarmTonePlayer`), so it rings on alarm volume even on silent.
+- Alarm screen showed the raw 24h alarm string with a guessed AM/PM ("19 : 30 AM"); now a live clock.
+- Custom tone no longer fetched from Firestore at ring time (network-dependent, audible switch); read from local `AlarmCache`.
+- **HomeViewModel stats always 0 for returning users**: an early return when cached alarm time == Firestore time skipped attaching the tribe/member listeners on every cold start.
+
+**Added:**
+- Alarm screen redesign: rising sunrise backdrop, breathing glow, time-aware greeting, date, tribe strip ("N of M already up"), 30s volume crescendo, sunburst wake-up celebration with streak odometer. Respects "remove animations".
+- Swipe-to-wake refinement ("Sunrise track"): horizon fill, sun thumb with rotating rays that lengthen with progress, slight lift, idle nudge hint, "Slide to rise" + chevron wave. Gesture logic unchanged.
+- In-app `AlarmToneSheet` (system alarm tones only), tap-to-preview on the alarm stream with equalizer indicator; tone + title stored on-device; Account row shows tone name. One-time migration from the old Firestore field.
+
+**Known gap:** wakes while offline are not recorded (Firestore transactions need network), so `MissedAlarmReceiver` can mark an offline riser as missed.
+
+---
+
 ## 2026-10-08 — Beta-Readiness Pass
 
 **Added:**

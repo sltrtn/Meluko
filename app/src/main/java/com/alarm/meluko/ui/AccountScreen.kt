@@ -1,7 +1,5 @@
 package com.alarm.meluko.ui
 
-import android.content.Intent
-import android.media.RingtoneManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -111,14 +109,18 @@ fun AccountScreen(
     ) { uri: Uri? -> pickedImageUri = uri }
 
     val alarmToneUri by accountViewModel.alarmToneUri.collectAsState()
+    val alarmToneTitle by accountViewModel.alarmToneTitle.collectAsState()
+    var showToneSheet by remember { mutableStateOf(false) }
 
-    val ringtonePicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        val uri = result.data?.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
-        if (uri != null) {
-            accountViewModel.updateAlarmTone(uri.toString())
-        }
+    if (showToneSheet) {
+        AlarmToneSheet(
+            currentUri = alarmToneUri,
+            onDismiss = { showToneSheet = false },
+            onSave = { tone ->
+                accountViewModel.updateAlarmTone(tone.uri, tone.title)
+                showToneSheet = false
+            }
+        )
     }
 
     // ── Edit Profile Dialog ───────────────────────────────────────────────────
@@ -631,18 +633,9 @@ fun AccountScreen(
                     SettingsRow(
                         icon = Icons.Filled.Alarm,
                         label = "Alarm Tone",
-                        subtitle = if (alarmToneUri != null) "Custom tone set" else "Default alarm sound",
-                        onClick = {
-                            val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
-                                putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
-                                putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
-                                putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
-                                alarmToneUri?.let {
-                                    putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Uri.parse(it))
-                                }
-                            }
-                            ringtonePicker.launch(intent)
-                        }
+                        subtitle = alarmToneTitle
+                            ?: if (alarmToneUri != null) "Custom tone" else "Default alarm",
+                        onClick = { showToneSheet = true }
                     )
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),

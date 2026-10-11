@@ -1,7 +1,7 @@
 # Handoff — Session End
 
-> **Last updated:** 2026-10-08
-> **Last action:** Beta-readiness feature pass (account deletion, tribe leave/remove/delete, invite sharing, battery prompt, fun-factor UI polish)
+> **Last updated:** 2026-10-11
+> **Last action:** Alarm screen + swipe-to-wake + tone picker overhaul; fixed Home stats-always-0 bug (see changelog 2026-10-11)
 
 ---
 
@@ -58,6 +58,9 @@ The entire 2026-08-27 production audit session's work (security rules, race-cond
 ---
 
 ## Known remaining gaps (acceptable for beta, not blockers)
+
+- **Offline wakes aren't recorded** (AlarmActivity uses a Firestore transaction, which needs network) and MissedAlarmReceiver then marks the user missed. Highest-priority follow-up.
+- Debug preview: Anonymous auth is enabled in Firebase Console for the LoginScreen "Skip Login (Debug Preview)" button (DEBUG builds only).
 
 - Cloud Functions not deployed (see above) — client-side fallbacks cover auto-accept, join, and member-removal cleanup, just with slightly weaker guarantees (e.g. requires the affected client to be online to self-heal).
 - No FCM push notifications — proposals/vetoes/wake events still require the app to be open or a Firestore listener active.
