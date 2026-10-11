@@ -56,6 +56,7 @@ class HomeViewModel @Inject constructor(
     private var userAlarmRegistration: ListenerRegistration? = null
     private var memberRegistration: ListenerRegistration? = null
     private var tribeRegistration: ListenerRegistration? = null
+    private var listenedTribeId: String? = null
 
     init {
         // Load from local cache immediately for instant display
@@ -92,13 +93,16 @@ class HomeViewModel @Inject constructor(
                     if (tribeId != null) AlarmCache.saveTribeId(context, tribeId)
 
                     val time = snapshot.getString(FirestoreField.FOLLOWED_ALARM_TIME)
-                        ?: return@addSnapshotListener
-                    if (time == _nextAlarmTime.value && time != "--:--") return@addSnapshotListener
-                    _nextAlarmTime.value = time
-                    AlarmCache.saveAlarmTime(context, time)
-                    scheduleAlarm(time)
+                    // Only reschedule when the time actually changed; listeners below must
+                    // still attach on every cold start (cached time == Firestore time).
+                    if (time != null && time != _nextAlarmTime.value) {
+                        _nextAlarmTime.value = time
+                        AlarmCache.saveAlarmTime(context, time)
+                        scheduleAlarm(time)
+                    }
 
-                    if (tribeId != null) {
+                    if (tribeId != null && tribeId != listenedTribeId) {
+                        listenedTribeId = tribeId
                         tribeRegistration?.remove()
                         tribeRegistration = db.collection(FirestoreCollection.TRIBES).document(tribeId)
                             .addSnapshotListener { tribeSnap, tribeError ->
@@ -108,7 +112,7 @@ class HomeViewModel @Inject constructor(
                                 }
                                 if (tribeSnap == null || !tribeSnap.exists()) return@addSnapshotListener
                                 val tribeAlarm = tribeSnap.getString(FirestoreField.ALARM_TIME)
-                                if (tribeAlarm != null && tribeAlarm != time) {
+                                if (tribeAlarm != null && tribeAlarm != _nextAlarmTime.value) {
                                     db.collection(FirestoreCollection.USER_ALARMS).document(currentUid)
                                         .update(FirestoreField.FOLLOWED_ALARM_TIME, tribeAlarm)
                                 }
