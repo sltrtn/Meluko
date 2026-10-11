@@ -233,16 +233,30 @@ fun AccountScreen(
         AlertDialog(
             onDismissRequest = { showAbout = false },
             title = {
-                // Tap 7 times to unlock the easter egg
+                // Tap 7 times to unlock the easter egg. No ripple, so the title
+                // doesn't look tappable; haptics start once you're 3 away.
+                val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
                 Text(
                     text = "MELUKO",
                     fontFamily = DefaultFontFamily,
                     fontWeight = FontWeight.Black,
                     fontSize = 28.sp,
                     letterSpacing = 4.sp,
-                    modifier = Modifier.clickable {
+                    modifier = Modifier.clickable(
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        if (showSlater) return@clickable
                         easterEggTaps++
-                        if (easterEggTaps >= 7) showSlater = true
+                        when {
+                            easterEggTaps >= 7 -> {
+                                showSlater = true
+                                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                            }
+                            easterEggTaps >= 4 -> haptic.performHapticFeedback(
+                                androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove
+                            )
+                        }
                     }
                 )
             },
@@ -272,57 +286,79 @@ fun AccountScreen(
                     val uriHandler = LocalUriHandler.current
                     AnimatedVisibility(
                         visible = showSlater,
-                        enter = fadeIn() + scaleIn(),
+                        enter = fadeIn() + scaleIn(
+                            animationSpec = androidx.compose.animation.core.spring(
+                                dampingRatio = 0.45f,
+                                stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+                            ),
+                            initialScale = 0.6f
+                        ),
                         exit = fadeOut() + scaleOut()
                     ) {
                         Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color(0xFF1A0040),
-                            modifier = Modifier.clickable {
-                                uriHandler.openUri("https://github.com/sltrtn")
-                            }
+                            shape = MaterialTheme.shapes.large,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            onClick = { uriHandler.openUri("https://github.com/sltrtn") }
                         ) {
-                            Column(
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    .padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = "Slater",
-                                    fontFamily = DefaultFontFamily,
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 22.sp,
-                                    letterSpacing = 3.sp,
-                                    color = Color(0xFFD4AAFF)
-                                )
-                                Text(
-                                    text = "The one who started it all.",
-                                    fontFamily = BodyFontFamily,
-                                    fontSize = 12.sp,
-                                    color = Color(0xFF9B6FD6)
-                                )
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    text = "github.com/sltrtn",
-                                    fontFamily = BodyFontFamily,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.sp,
-                                    color = Color(0xFFD4AAFF).copy(alpha = 0.7f),
-                                    textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .background(
+                                            androidx.compose.ui.graphics.Brush.linearGradient(MelukoTheme.colors.sunrise.reversed()),
+                                            MaterialShapes.SoftBurst.toShape()
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "S",
+                                        fontFamily = DefaultFontFamily,
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 22.sp,
+                                        color = Color(0xFF2A1100)
+                                    )
+                                }
+                                Spacer(Modifier.width(14.dp))
+                                Column {
+                                    Text(
+                                        text = "Slater",
+                                        fontFamily = DefaultFontFamily,
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 20.sp,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    Text(
+                                        text = "The one who started it all.",
+                                        fontFamily = BodyFontFamily,
+                                        fontSize = 13.sp,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                    )
+                                    Text(
+                                        text = "github.com/sltrtn",
+                                        fontFamily = BodyFontFamily,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                                        textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
+                                    )
+                                }
                             }
                         }
                     }
 
-                    // Hint text before unlocked
-                    if (!showSlater && easterEggTaps in 1..6) {
+                    // Stay silent until 3 taps away, the way Android's developer options do.
+                    if (!showSlater && easterEggTaps in 4..6) {
+                        val left = 7 - easterEggTaps
                         Text(
-                            text = "${7 - easterEggTaps} more...",
+                            text = "You're $left ${if (left == 1) "tap" else "taps"} away…",
                             fontFamily = BodyFontFamily,
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                         )
                     }
                 }
