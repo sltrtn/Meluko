@@ -213,7 +213,8 @@ fun AppNavGraph() {
             MainScreen(
                 onNavigateToTribe = { tribeId ->
                     navController.navigate(Routes.createTribeDetailRoute(tribeId))
-                }
+                },
+                onJoinTribe = { navController.navigate(Routes.JOIN_TRIBE) }
             )
         }
 

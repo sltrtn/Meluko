@@ -20,7 +20,9 @@ import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.material.icons.rounded.HowToVote
 import androidx.compose.material.icons.rounded.PersonAdd
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.PersonRemove
+import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -92,7 +94,8 @@ fun TribeDetailScreen(
     val vetoesUsed by proposalViewModel.vetoesUsed.collectAsState()
 
     val hasActiveProposal = activeProposal != null
-    val canVeto = vetoesUsed < 2 // Max 2 vetos lifetime per tribe
+    val isMyProposal = activeProposal?.proposedBy == uid
+    val canVeto = vetoesUsed < ProposalViewModel.MAX_VETOES && !isMyProposal
     val alreadyVetoed = activeProposal?.vetoedBy?.contains(uid) == true
 
     var showProposeSheet by remember { mutableStateOf(false) }
@@ -244,8 +247,9 @@ fun TribeDetailScreen(
             VetoBottomSheet(
                 vetosLeft = 2 - vetoesUsed,
                 onDismiss = { showVetoSheet = false },
-                onConfirmVeto = { onSuccess ->
+                onConfirmVeto = { onSuccess, onError ->
                     proposalViewModel.castVeto(
+                        onError = onError,
                         tribeId = tribeId,
                         proposalId = proposal.id,
                         onSuccess = onSuccess
@@ -253,6 +257,10 @@ fun TribeDetailScreen(
                 }
             )
         }
+    }
+
+    LaunchedEffect(isAdmin, tribeInviteCode) {
+        if (isAdmin && tribeInviteCode.isNotBlank()) socialViewModel.ensureInvite(tribeId, tribeInviteCode)
     }
 
     val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
@@ -480,8 +488,8 @@ fun TribeDetailScreen(
                         countdownText = countdownText,
                         canVeto = canVeto && !alreadyVetoed,
                         alreadyVetoed = alreadyVetoed,
+                        isMine = isMyProposal,
                         vetoesLeft = 2 - vetoesUsed,
-                        vetoCount = proposal.vetoCount,
                         onVetoClick = { showVetoSheet = true },
                         modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp)
                     )
@@ -507,12 +515,31 @@ fun TribeDetailScreen(
                             modifier = Modifier.staggeredEnter(2 + index),
                             trailing = if (isAdmin && !member.isYou) {
                                 {
-                                    IconButton(onClick = { memberPendingRemoval = member }) {
-                                        Icon(
-                                            Icons.Rounded.PersonRemove,
-                                            contentDescription = "Remove ${member.name}",
-                                            tint = MaterialTheme.colorScheme.error
-                                        )
+                                    var menuOpen by remember { mutableStateOf(false) }
+                                    Box {
+                                        IconButton(onClick = { menuOpen = true }) {
+                                            Icon(Icons.Rounded.MoreVert, contentDescription = "Manage ${member.name}")
+                                        }
+                                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                                            if (!member.isAdmin) {
+                                                DropdownMenuItem(
+                                                    text = { Text("Make admin", fontFamily = DefaultFontFamily) },
+                                                    leadingIcon = { Icon(Icons.Rounded.Shield, null) },
+                                                    onClick = {
+                                                        menuOpen = false
+                                                        socialViewModel.makeAdmin(tribeId, member.uid)
+                                                    }
+                                                )
+                                            }
+                                            DropdownMenuItem(
+                                                text = { Text("Remove from tribe", color = MaterialTheme.colorScheme.error, fontFamily = DefaultFontFamily) },
+                                                leadingIcon = { Icon(Icons.Rounded.PersonRemove, null, tint = MaterialTheme.colorScheme.error) },
+                                                onClick = {
+                                                    menuOpen = false
+                                                    memberPendingRemoval = member
+                                                }
+                                            )
+                                        }
                                     }
                                 }
                             } else null
@@ -626,8 +653,8 @@ private fun ProposalCard(
     countdownText: String,
     canVeto: Boolean,
     alreadyVetoed: Boolean,
+    isMine: Boolean,
     vetoesLeft: Int,
-    vetoCount: Int,
     onVetoClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -679,8 +706,7 @@ private fun ProposalCard(
                 color = onCard
             )
             Text(
-                text = if (vetoCount > 0) "${plural(vetoCount, "veto", "vetoes")} so far. It still passes unless someone vetoes in time."
-                else "It passes automatically unless someone vetoes in time.",
+                text = "It goes through automatically when the timer ends. One veto cancels it.",
                 fontSize = 13.sp,
                 lineHeight = 17.sp,
                 fontFamily = BodyFontFamily,
@@ -688,6 +714,15 @@ private fun ProposalCard(
             )
             Spacer(Modifier.height(16.dp))
             when {
+                isMine -> Text(
+                    "This is your proposal. Waiting on the tribe.",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = DefaultFontFamily,
+                    color = onCard,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
                 alreadyVetoed -> Text(
                     "You vetoed this one.",
                     fontSize = 14.sp,

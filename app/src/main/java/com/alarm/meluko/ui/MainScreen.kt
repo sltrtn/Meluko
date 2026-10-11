@@ -24,7 +24,8 @@ private const val HOME_TAB = 1
 
 @Composable
 fun MainScreen(
-    onNavigateToTribe: (String) -> Unit = {}
+    onNavigateToTribe: (String) -> Unit = {},
+    onJoinTribe: () -> Unit = {}
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(HOME_TAB) }
     val pagerState = rememberPagerState(initialPage = HOME_TAB, pageCount = { 3 })
@@ -66,9 +67,9 @@ fun MainScreen(
                             }
                     ) {
                         when (page) {
-                            0 -> SocialScreen(onNavigateToTribe = onNavigateToTribe)
+                            0 -> SocialScreen(onNavigateToTribe = onNavigateToTribe, onJoinTribe = onJoinTribe)
                             2 -> AccountScreen()
-                            else -> HomeScreen(onTribeClick = onNavigateToTribe)
+                            else -> HomeScreen(onTribeClick = onNavigateToTribe, onJoinTribe = onJoinTribe)
                         }
                     }
                 }

@@ -134,10 +134,10 @@ fun SetFirstAlarmScreen(
                     Button(
                         onClick = {
                             if (tribeId != null) {
-                                proposalViewModel.createProposal(
+                                proposalViewModel.setInitialAlarm(
                                     tribeId = tribeId,
-                                    proposedTime = to24HourTime(selectedHour, selectedMinute, selectedAmPm),
-                                    onSuccess = onFinish
+                                    time = to24HourTime(selectedHour, selectedMinute, selectedAmPm),
+                                    onDone = onFinish
                                 )
                             } else {
                                 onFinish()
@@ -160,7 +160,7 @@ fun SetFirstAlarmScreen(
                         )
                         } else {
                             Text(
-                                text = "PROPOSE & CONTINUE",
+                                text = "SET & CONTINUE",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Black,
                                 fontFamily = DefaultFontFamily,

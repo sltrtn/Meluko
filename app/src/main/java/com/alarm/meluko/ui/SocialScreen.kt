@@ -65,7 +65,8 @@ data class TribeProgress(
 @Composable
 fun SocialScreen(
     socialViewModel: SocialViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
-    onNavigateToTribe: (String) -> Unit = {}
+    onNavigateToTribe: (String) -> Unit = {},
+    onJoinTribe: () -> Unit = {}
 ) {
     val uiState by socialViewModel.uiState.collectAsState()
     val members by socialViewModel.members.collectAsState()
@@ -84,7 +85,8 @@ fun SocialScreen(
         is SocialUiState.Success -> SocialContent(
             members = members,
             tribe = tribes.firstOrNull(),
-            onNavigateToTribe = onNavigateToTribe
+            onNavigateToTribe = onNavigateToTribe,
+            onJoinTribe = onJoinTribe
         )
     }
 }
@@ -93,7 +95,8 @@ fun SocialScreen(
 private fun SocialContent(
     members: List<TribeMember>,
     tribe: TribeProgress?,
-    onNavigateToTribe: (String) -> Unit
+    onNavigateToTribe: (String) -> Unit,
+    onJoinTribe: () -> Unit = {}
 ) {
     val awakeCount = members.count { it.status == WakeStatus.Awake }
     val missedCount = members.count { it.status == WakeStatus.Missed }
@@ -124,6 +127,7 @@ private fun SocialContent(
         TribeSummaryCard(
             tribe = tribe,
             onClick = { tribe?.let { onNavigateToTribe(it.id) } },
+            onJoinTribe = onJoinTribe,
             modifier = Modifier
                 .padding(horizontal = 20.dp)
                 .staggeredEnter(1)

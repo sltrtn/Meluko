@@ -1,6 +1,10 @@
 package com.alarm.meluko.auth
 
 import android.content.Context
+import com.alarm.meluko.alarm.AlarmScheduler
+import com.alarm.meluko.alarm.MissedAlarmReceiver
+import com.alarm.meluko.data.AlarmCache
+import dagger.hilt.android.qualifiers.ApplicationContext
 import android.util.Log
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
@@ -43,6 +47,7 @@ sealed class AuthState {
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val firebaseAuth: FirebaseAuth
 ) : ViewModel() {
 
@@ -57,9 +62,18 @@ class AuthViewModel @Inject constructor(
     // entry, so a sign-out in one (e.g. Account) must be observed by all of
     // them — including the one AppNavGraph routes on.
     private val authListener = FirebaseAuth.AuthStateListener { auth ->
-        if (auth.currentUser == null && _authState.value is AuthState.Success) {
-            _authState.value = AuthState.Idle
+        if (auth.currentUser == null) {
+            // Signed out (or account deleted): this phone must stop ringing for that
+            // user, and the next user mustn't inherit their cached tribe/time/tone.
+            clearDeviceAlarmState()
+            if (_authState.value is AuthState.Success) _authState.value = AuthState.Idle
         }
+    }
+
+    private fun clearDeviceAlarmState() {
+        AlarmScheduler(appContext).cancel()
+        MissedAlarmReceiver.cancel(appContext)
+        AlarmCache.clear(appContext)
     }
 
     init {
@@ -226,10 +240,12 @@ class AuthViewModel @Inject constructor(
     ): Boolean {
         return try {
             withTimeoutOrNull(FIRESTORE_TIMEOUT_MS) {
-                // 1. Write user doc first (best-effort, non-critical)
+                // 1. Create the user doc only if it doesn't exist yet. Writing defaults with
+                //    merge on every sign-in would wipe the user's photo, username and bio.
                 try {
-                    firestore.collection(FirestoreCollection.USERS).document(uid)
-                        .set(
+                    val userRef = firestore.collection(FirestoreCollection.USERS).document(uid)
+                    if (!userRef.get().await().exists()) {
+                        userRef.set(
                             mapOf(
                                 FirestoreField.DISPLAY_NAME to displayName,
                                 FirestoreField.EMAIL to email,
@@ -237,9 +253,9 @@ class AuthViewModel @Inject constructor(
                                 FirestoreField.USERNAME to "",
                                 FirestoreField.BIO to "",
                                 FirestoreField.CREATED_AT to FieldValue.serverTimestamp()
-                            ),
-                            SetOptions.merge()
+                            )
                         ).await()
+                    }
                 } catch (e: Exception) {
                     Log.w(TAG, "User doc write failed (non-critical): ${e.message}")
                 }
@@ -288,8 +304,6 @@ class AuthViewModel @Inject constructor(
                     return@launch
                 }
 
-                val tribeId = "preview-tribe-$uid"
-
                 firestore.collection(FirestoreCollection.USERS).document(uid).set(
                     mapOf(
                         FirestoreField.DISPLAY_NAME to "Preview User",
@@ -299,48 +313,10 @@ class AuthViewModel @Inject constructor(
                         FirestoreField.NOTIFICATIONS_ENABLED to true
                     )
                 ).await()
-
-                firestore.collection(FirestoreCollection.TRIBES).document(tribeId).set(
-                    mapOf(
-                        FirestoreField.NAME to "Preview Tribe",
-                        FirestoreField.DESCRIPTION to "Debug preview data",
-                        FirestoreField.INVITE_CODE to "PREVU1",
-                        FirestoreField.CREATED_BY to uid,
-                        FirestoreField.ALARM_TIME to "07:30",
-                        FirestoreField.ALARM_DAYS to listOf(1, 2, 3, 4, 5),
-                        FirestoreField.MEMBER_COUNT to 1,
-                        FirestoreField.PHOTO_URL to null,
-                        FirestoreField.TONE_URI to null,
-                        FirestoreField.TONE_SOURCE to null,
-                        FirestoreField.CREATED_AT to FieldValue.serverTimestamp()
-                    )
-                ).await()
-
-                firestore.collection(FirestoreCollection.TRIBES).document(tribeId)
-                    .collection(FirestoreCollection.MEMBERS).document(uid).set(
-                        mapOf(
-                            FirestoreField.DISPLAY_NAME to "Preview User",
-                            FirestoreField.PHOTO_URL to null,
-                            FirestoreField.ROLE to FirestoreField.ROLE_ADMIN,
-                            FirestoreField.TODAY_STATUS to FirestoreField.STATUS_AWAKE,
-                            FirestoreField.TODAY_WAKE_TIME to "07:28",
-                            FirestoreField.STREAK_DAYS to 7,
-                            FirestoreField.BEST_STREAK to 12,
-                            FirestoreField.TOTAL_WAKES to 41,
-                            FirestoreField.VETOES_USED to 0,
-                            FirestoreField.RANK to 1,
-                            FirestoreField.JOINED_AT to FieldValue.serverTimestamp()
-                        )
-                    ).await()
-
-                firestore.collection(FirestoreCollection.USER_ALARMS).document(uid).set(
-                    mapOf(
-                        FirestoreField.PRIMARY_TRIBE_ID to tribeId,
-                        FirestoreField.FOLLOWED_ALARM_TIME to "07:30",
-                        FirestoreField.ACTIVE to true
-                    ),
-                    SetOptions.merge()
-                ).await()
+                // Same rule-checked path as a real user creating a tribe (unique invite code).
+                val tribeId = com.alarm.meluko.data.TribeActions.createTribe(
+                    firestore, uid, "Preview User", null, "Preview Tribe", "Debug preview data"
+                )
 
                 Log.d(TAG, "Debug preview seeded for uid=$uid, tribeId=$tribeId")
                 _authState.value = AuthState.Success(displayName = "Preview User", isNewUser = false)

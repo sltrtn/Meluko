@@ -35,6 +35,7 @@ import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.EmojiEvents
+import androidx.compose.material.icons.rounded.HowToVote
 import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material3.*
@@ -87,6 +88,7 @@ data class TribeInfo(
 @Composable
 fun HomeScreen(
     onTribeClick: (String) -> Unit,
+    onJoinTribe: () -> Unit = {},
     homeViewModel: HomeViewModel = hiltViewModel(),
     socialViewModel: SocialViewModel = hiltViewModel(),
     proposalViewModel: ProposalViewModel = hiltViewModel()
@@ -101,6 +103,12 @@ fun HomeScreen(
     val lastWakeDate by homeViewModel.lastWakeDate.collectAsState()
     val todayStatus by homeViewModel.todayStatus.collectAsState()
     val tribes by socialViewModel.tribes.collectAsState()
+    val activeProposal by proposalViewModel.activeProposal.collectAsState()
+
+    // Home also drives auto-accept, so proposals resolve without anyone opening Tribe Detail.
+    LaunchedEffect(primaryTribeId) {
+        primaryTribeId?.let { proposalViewModel.listenToTribeProposals(it) }
+    }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val proposalError by proposalViewModel.error.collectAsState()
@@ -136,6 +144,7 @@ fun HomeScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         nextAlarmTime = nextAlarmTime,
         hasTribe = primaryTribeId != null,
+        hasOpenProposal = activeProposal != null,
         tribe = tribes.firstOrNull(),
         streakDays = streakDays,
         bestStreak = bestStreak,
@@ -144,6 +153,7 @@ fun HomeScreen(
         lastWakeDate = lastWakeDate,
         todayStatus = todayStatus,
         onTribeClick = onTribeClick,
+        onJoinTribe = onJoinTribe,
         onProposeClick = { showProposeSheet = true }
     )
 }
@@ -158,6 +168,7 @@ fun HomeScreenContent(
     nextAlarmTime: String,
     hasTribe: Boolean,
     tribe: TribeProgress?,
+    hasOpenProposal: Boolean = false,
     snackbarHost: @Composable () -> Unit = {},
     streakDays: Int = 0,
     bestStreak: Int = 0,
@@ -166,6 +177,7 @@ fun HomeScreenContent(
     lastWakeDate: String? = null,
     todayStatus: WakeStatus = WakeStatus.Sleeping,
     onTribeClick: (String) -> Unit,
+    onJoinTribe: () -> Unit = {},
     onProposeClick: () -> Unit
 ) {
     Scaffold(
@@ -190,7 +202,9 @@ fun HomeScreenContent(
             AlarmHeroCard(
                 nextAlarmTime = nextAlarmTime,
                 hasTribe = hasTribe,
+                hasOpenProposal = hasOpenProposal,
                 onProposeClick = onProposeClick,
+                onOpenProposal = { tribe?.let { onTribeClick(it.id) } },
                 modifier = Modifier
                     .padding(horizontal = 20.dp)
                     .staggeredEnter(0)
@@ -203,6 +217,7 @@ fun HomeScreenContent(
             TribeSummaryCard(
                 tribe = tribe,
                 onClick = { tribe?.let { onTribeClick(it.id) } },
+                onJoinTribe = onJoinTribe,
                 modifier = Modifier
                     .padding(horizontal = 20.dp)
                     .staggeredEnter(1)
@@ -405,7 +420,9 @@ fun AlarmHeroCard(
     nextAlarmTime: String,
     hasTribe: Boolean,
     onProposeClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    hasOpenProposal: Boolean = false,
+    onOpenProposal: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val sunrise = MelukoTheme.colors.sunrise
@@ -507,7 +524,21 @@ fun AlarmHeroCard(
                         Icon(Icons.Rounded.BugReport, "Test alarm in 5 seconds", tint = onHero.copy(alpha = 0.6f))
                     }
                 }
-                if (hasTribe) {
+                if (hasTribe && hasOpenProposal) {
+                    Button(
+                        onClick = onOpenProposal,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.White.copy(alpha = 0.3f),
+                            contentColor = onHero
+                        ),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                        modifier = Modifier.pressScale()
+                    ) {
+                        Icon(Icons.Rounded.HowToVote, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Proposal open", fontWeight = FontWeight.ExtraBold, fontFamily = DefaultFontFamily)
+                    }
+                } else if (hasTribe) {
                     Button(
                         onClick = onProposeClick,
                         colors = ButtonDefaults.buttonColors(containerColor = onHero, contentColor = Color.White),
@@ -531,17 +562,32 @@ fun AlarmHeroCard(
 internal fun TribeSummaryCard(
     tribe: TribeProgress?,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onJoinTribe: (() -> Unit)? = null,
 ) {
     if (tribe == null) {
         MelukoCard(modifier = modifier.fillMaxWidth()) {
-            Text(
-                text = "You're not in a tribe yet. Mornings are better together.",
-                fontSize = 14.sp,
-                fontFamily = BodyFontFamily,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(20.dp)
-            )
+            Column(Modifier.padding(20.dp)) {
+                Text(
+                    text = "You're not in a tribe yet. Mornings are better together.",
+                    fontSize = 14.sp,
+                    fontFamily = BodyFontFamily,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (onJoinTribe != null) {
+                    Spacer(Modifier.height(14.dp))
+                    Button(
+                        onClick = onJoinTribe,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        ),
+                        modifier = Modifier.pressScale()
+                    ) {
+                        Text("Join or create a tribe", fontWeight = FontWeight.ExtraBold, fontFamily = DefaultFontFamily)
+                    }
+                }
+            }
         }
         return
     }

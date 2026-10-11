@@ -269,24 +269,9 @@ class AccountViewModel @Inject constructor(
 
     private suspend fun leaveTribeBestEffort(currentUid: String) {
         try {
-            val userAlarmSnap = db.collection(FirestoreCollection.USER_ALARMS).document(currentUid).get().await()
-            val primaryTribeId = userAlarmSnap.getString(FirestoreField.PRIMARY_TRIBE_ID) ?: return
-
-            val tribeRef = db.collection(FirestoreCollection.TRIBES).document(primaryTribeId)
-            val memberRef = tribeRef.collection(FirestoreCollection.MEMBERS).document(currentUid)
-
-            db.runTransaction { transaction ->
-                val tribeSnap = transaction.get(tribeRef)
-                if (tribeSnap.exists()) {
-                    val currentCount = tribeSnap.getLong(FirestoreField.MEMBER_COUNT)?.toInt() ?: 1
-                    if (currentCount <= 1) {
-                        transaction.delete(tribeRef)
-                    } else {
-                        transaction.update(tribeRef, FirestoreField.MEMBER_COUNT, currentCount - 1)
-                    }
-                }
-                transaction.delete(memberRef)
-            }.await()
+            val tribeId = db.collection(FirestoreCollection.USER_ALARMS).document(currentUid).get().await()
+                .getString(FirestoreField.PRIMARY_TRIBE_ID) ?: return
+            com.alarm.meluko.data.TribeActions.leaveTribe(db, currentUid, tribeId)
         } catch (e: Exception) {
             Log.w("AccountVM", "Leaving tribe during account deletion failed (non-critical)", e)
         }

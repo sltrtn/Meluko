@@ -208,7 +208,8 @@ class AlarmActivity : ComponentActivity() {
             val memberRef = firebaseFirestore.collection(FirestoreCollection.TRIBES).document(tribeId)
                 .collection(FirestoreCollection.MEMBERS).document(uid)
 
-            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            // Stored dates are machine-readable (rules parse them), so always ASCII digits.
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
             val today = dateFormat.format(Date())
             val yesterday = dateFormat.format(Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }.time)
             val wakeTime = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())
@@ -223,7 +224,15 @@ class AlarmActivity : ComponentActivity() {
                 val (newStreak, shouldCount) = StreakCalculator.computeNewStreak(
                     memberDoc.getString(FirestoreField.LAST_WAKE_DATE), today, yesterday, currentStreak
                 )
-                if (!shouldCount) return@runTransaction currentStreak
+                if (!shouldCount) {
+                    // Second alarm today (e.g. the time changed): already counted, but
+                    // the alarm reset us to sleeping, so mark us awake again.
+                    transaction.update(memberRef, mapOf(
+                        FirestoreField.TODAY_STATUS to FirestoreField.STATUS_AWAKE,
+                        FirestoreField.TODAY_WAKE_TIME to wakeTime
+                    ))
+                    return@runTransaction currentStreak
+                }
 
                 val bestStreak = memberDoc.getLong(FirestoreField.BEST_STREAK)?.toInt() ?: 0
                 val totalWakes = memberDoc.getLong(FirestoreField.TOTAL_WAKES)?.toInt() ?: 0

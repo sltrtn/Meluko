@@ -5,9 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.alarm.meluko.data.FirestoreCollection
 import com.alarm.meluko.data.FirestoreField
+import com.alarm.meluko.data.TribeActions
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.SetOptions
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -194,8 +194,8 @@ class SocialViewModel @Inject constructor(
                             _tribes.value = listOf(
                                 TribeProgress(primaryTribeId, name, photoUrl, awakeCount, memberCount)
                             )
-                        } else if (tribeSnap != null && !tribeSnap.exists()) {
-                            // Tribe was deleted — clear our stale pointer.
+                        } else if (tribeSnap != null && !tribeSnap.exists() && !tribeSnap.metadata.isFromCache) {
+                            // Tribe was deleted (confirmed by the server, not a cold offline cache).
                             clearStaleTribePointer(primaryTribeId)
                         }
                     }
@@ -204,25 +204,11 @@ class SocialViewModel @Inject constructor(
             }
     }
 
-    /**
-     * Leave a tribe as the current user. Decrements memberCount while the
-     * member doc still exists (so the tribe-update rule's isTribeMember check
-     * passes), then deletes the member doc. A Cloud Function trigger clears
-     * this user's user_alarms pointer afterward.
-     */
+    /** Leave a tribe. Hands admin to the longest-standing member, or deletes the tribe if we're last. */
     fun leaveTribe(tribeId: String, onSuccess: () -> Unit) {
         val currentUid = uid.takeIf { it.isNotEmpty() } ?: return
         runTribeAction {
-            val tribeRef = db.collection(FirestoreCollection.TRIBES).document(tribeId)
-            val memberRef = tribeRef.collection(FirestoreCollection.MEMBERS).document(currentUid)
-
-            db.runTransaction { transaction ->
-                val tribeSnap = transaction.get(tribeRef)
-                val currentCount = tribeSnap.getLong(FirestoreField.MEMBER_COUNT)?.toInt() ?: 1
-                transaction.update(tribeRef, FirestoreField.MEMBER_COUNT, (currentCount - 1).coerceAtLeast(0))
-                transaction.delete(memberRef)
-            }.await()
-
+            TribeActions.leaveTribe(db, currentUid, tribeId)
             onSuccess()
         }
     }
@@ -230,48 +216,29 @@ class SocialViewModel @Inject constructor(
     /** Admin-only: remove another member from the tribe. */
     fun removeMember(tribeId: String, memberUid: String, onSuccess: () -> Unit) {
         runTribeAction {
-            val tribeRef = db.collection(FirestoreCollection.TRIBES).document(tribeId)
-            val targetMemberRef = tribeRef.collection(FirestoreCollection.MEMBERS).document(memberUid)
-
-            db.runTransaction { transaction ->
-                val tribeSnap = transaction.get(tribeRef)
-                val currentCount = tribeSnap.getLong(FirestoreField.MEMBER_COUNT)?.toInt() ?: 1
-                transaction.update(tribeRef, FirestoreField.MEMBER_COUNT, (currentCount - 1).coerceAtLeast(0))
-                transaction.delete(targetMemberRef)
-            }.await()
-
+            TribeActions.removeMember(db, tribeId, memberUid)
             onSuccess()
         }
     }
 
-    /**
-     * Admin-only: permanently delete a tribe. Only allowed once the admin is
-     * the last remaining member (Firestore rules enforce this too), to avoid
-     * orphaning other members' data.
-     */
+    /** Admin-only: make another member an admin too. */
+    fun makeAdmin(tribeId: String, memberUid: String) {
+        runTribeAction { TribeActions.makeAdmin(db, tribeId, memberUid) }
+    }
+
+    /** Last member: permanently delete the tribe. */
     fun deleteTribe(tribeId: String, onSuccess: () -> Unit) {
         val currentUid = uid.takeIf { it.isNotEmpty() } ?: return
         runTribeAction {
-            val tribeRef = db.collection(FirestoreCollection.TRIBES).document(tribeId)
-            val ownMemberRef = tribeRef.collection(FirestoreCollection.MEMBERS).document(currentUid)
-
-            // Delete the tribe doc first (its rule needs the admin's member doc
-            // to still exist), then the admin's own member doc.
-            db.runTransaction { transaction ->
-                transaction.delete(tribeRef)
-                transaction.delete(ownMemberRef)
-            }.await()
-
-            db.collection(FirestoreCollection.USER_ALARMS).document(currentUid).set(
-                mapOf(
-                    FirestoreField.PRIMARY_TRIBE_ID to null,
-                    FirestoreField.ACTIVE to false
-                ),
-                SetOptions.merge()
-            ).await()
-
+            TribeActions.deleteTribe(db, currentUid, tribeId)
             onSuccess()
         }
+    }
+
+    /** Admins: make sure a legacy tribe's invite code is actually joinable. */
+    fun ensureInvite(tribeId: String, inviteCode: String) {
+        if (inviteCode.isBlank()) return
+        viewModelScope.launch { TribeActions.ensureInviteDoc(db, tribeId, inviteCode) }
     }
 
     private fun runTribeAction(block: suspend () -> Unit) {

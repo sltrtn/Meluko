@@ -35,7 +35,7 @@ private enum class VetoState { Idle, Confirming, Success }
 fun VetoBottomSheet(
     vetosLeft: Int,
     onDismiss: () -> Unit,
-    onConfirmVeto: (onSuccess: () -> Unit) -> Unit,
+    onConfirmVeto: (onSuccess: () -> Unit, onError: () -> Unit) -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var vetoState by remember { mutableStateOf(VetoState.Idle) }
@@ -184,8 +184,10 @@ fun VetoBottomSheet(
                     Button(
                         onClick = {
                             vetoState = VetoState.Confirming
-                            onConfirmVeto {
+                            onConfirmVeto({
                                 vetoState = VetoState.Success
+                            }) {
+                                vetoState = VetoState.Idle
                             }
                         },
                         enabled = vetoState == VetoState.Idle && vetosLeft > 0,

@@ -6,6 +6,7 @@ object FirestoreCollection {
     const val TRIBES = "tribes"
     const val MEMBERS = "members"
     const val PROPOSALS = "proposals"
+    const val INVITES = "invites"
 }
 
 object FirestoreField {
@@ -50,6 +51,9 @@ object FirestoreField {
     const val TONE_SOURCE = "toneSource"
 
     const val ROLE = "role"
+    const val ACTIVE_PROPOSAL_ID = "activeProposalId"
+    const val JOINED_WITH = "joinedWith"
+    const val TRIBE_ID = "tribeId"
     const val ACTIVE = "active"
     const val DESCRIPTION = "description"
     const val ALARM_DAYS = "alarmDays"
