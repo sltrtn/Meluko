@@ -252,6 +252,87 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    /**
+     * DEBUG-only: anonymous sign-in + a self-owned tribe/profile seeded with
+     * realistic data, so the real app UI (Home/Social/Account/TribeDetail)
+     * can be exercised on an emulator with no Google account and no manual
+     * data entry. Never reachable from a release build — gated by
+     * BuildConfig.DEBUG at the call site (LoginScreen).
+     */
+    fun debugPreviewSignIn() {
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            try {
+                val authResult = firebaseAuth.signInAnonymously().await()
+                val uid = authResult.user?.uid
+                if (uid == null) {
+                    _authState.value = AuthState.Error("Preview sign-in failed: no user")
+                    return@launch
+                }
+
+                val tribeId = "preview-tribe-$uid"
+
+                firestore.collection(FirestoreCollection.USERS).document(uid).set(
+                    mapOf(
+                        FirestoreField.DISPLAY_NAME to "Preview User",
+                        FirestoreField.USERNAME to "previewuser",
+                        FirestoreField.BIO to "Just here to check the UI.",
+                        FirestoreField.PHOTO_URL to null,
+                        FirestoreField.NOTIFICATIONS_ENABLED to true
+                    )
+                ).await()
+
+                firestore.collection(FirestoreCollection.TRIBES).document(tribeId).set(
+                    mapOf(
+                        FirestoreField.NAME to "Preview Tribe",
+                        FirestoreField.DESCRIPTION to "Debug preview data",
+                        FirestoreField.INVITE_CODE to "PREVU1",
+                        FirestoreField.CREATED_BY to uid,
+                        FirestoreField.ALARM_TIME to "07:30",
+                        FirestoreField.ALARM_DAYS to listOf(1, 2, 3, 4, 5),
+                        FirestoreField.MEMBER_COUNT to 1,
+                        FirestoreField.PHOTO_URL to null,
+                        FirestoreField.TONE_URI to null,
+                        FirestoreField.TONE_SOURCE to null,
+                        FirestoreField.CREATED_AT to FieldValue.serverTimestamp()
+                    )
+                ).await()
+
+                firestore.collection(FirestoreCollection.TRIBES).document(tribeId)
+                    .collection(FirestoreCollection.MEMBERS).document(uid).set(
+                        mapOf(
+                            FirestoreField.DISPLAY_NAME to "Preview User",
+                            FirestoreField.PHOTO_URL to null,
+                            FirestoreField.ROLE to FirestoreField.ROLE_ADMIN,
+                            FirestoreField.TODAY_STATUS to FirestoreField.STATUS_AWAKE,
+                            FirestoreField.TODAY_WAKE_TIME to "07:28",
+                            FirestoreField.STREAK_DAYS to 7,
+                            FirestoreField.BEST_STREAK to 12,
+                            FirestoreField.TOTAL_WAKES to 41,
+                            FirestoreField.VETOES_USED to 0,
+                            FirestoreField.RANK to 1,
+                            FirestoreField.JOINED_AT to FieldValue.serverTimestamp()
+                        )
+                    ).await()
+
+                firestore.collection(FirestoreCollection.USER_ALARMS).document(uid).set(
+                    mapOf(
+                        FirestoreField.PRIMARY_TRIBE_ID to tribeId,
+                        FirestoreField.FOLLOWED_ALARM_TIME to "07:30",
+                        FirestoreField.ACTIVE to true
+                    ),
+                    SetOptions.merge()
+                ).await()
+
+                Log.d(TAG, "Debug preview seeded for uid=$uid, tribeId=$tribeId")
+                _authState.value = AuthState.Success(displayName = "Preview User", isNewUser = false)
+            } catch (e: Exception) {
+                Log.e(TAG, "Preview sign-in failed: ${e.message}", e)
+                _authState.value = AuthState.Error("Preview sign-in failed: ${e.message}")
+            }
+        }
+    }
+
     fun signOut() {
         firebaseAuth.signOut()
         _authState.value = AuthState.Idle

@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.alarm.meluko.BuildConfig
 import com.alarm.meluko.auth.AuthState
 import com.alarm.meluko.auth.AuthViewModel
 
@@ -156,6 +157,20 @@ fun LoginScreen(authViewModel: AuthViewModel) {
                                     style = MaterialTheme.typography.labelLarge,
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        // ── Debug-only preview bypass ────────────────────────
+                        if (BuildConfig.DEBUG) {
+                            TextButton(
+                                onClick = { authViewModel.debugPreviewSignIn() },
+                                enabled = !isLoading
+                            ) {
+                                Text(
+                                    text = "Skip Login (Debug Preview)",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
