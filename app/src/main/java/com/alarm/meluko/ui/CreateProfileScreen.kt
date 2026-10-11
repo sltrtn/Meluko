@@ -153,10 +153,8 @@ fun CreateProfileScreen(
                 TextButton(onClick = { imagePicker.launch("image/*") }) {
                     Text(
                         text = if (selectedImageUri == null) "Add a profile photo" else "Change photo",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
-                        fontFamily = BodyFontFamily
+                        style = MaterialTheme.typography.titleSmall
                     )
                 }
 
@@ -213,8 +211,7 @@ fun CreateProfileScreen(
                             text = error!!,
                             color = MaterialTheme.colorScheme.onErrorContainer,
                             modifier = Modifier.padding(12.dp),
-                            fontSize = 13.sp,
-                            fontFamily = BodyFontFamily
+                            style = MaterialTheme.typography.bodySmall
                         )
                     }
                 }
@@ -250,10 +247,8 @@ fun CreateProfileScreen(
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
                                 "CONTINUE",
-                                fontWeight = FontWeight.Black,
-                                fontFamily = DefaultFontFamily,
-                                fontSize = 15.sp,
-                                letterSpacing = 2.sp
+                                letterSpacing = 2.sp,
+                                style = MaterialTheme.typography.titleMedium
                             )
                             Icon(Icons.Rounded.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
                         }

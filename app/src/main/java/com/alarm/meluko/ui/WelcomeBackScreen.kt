@@ -105,9 +105,8 @@ fun WelcomeBackScreen(
             ) {
                 Text(
                     text = "M",
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Black,
-                    color = Color.White
+                    color = Color.White,
+                    style = MaterialTheme.typography.headlineMedium
                 )
             }
 
@@ -116,11 +115,9 @@ fun WelcomeBackScreen(
             // "Welcome back," — fades in with the screen
             Text(
                 text       = "Welcome back,",
-                fontSize   = 22.sp,
-                fontFamily = DefaultFontFamily,
-                fontWeight = FontWeight.Medium,
                 color      = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign  = TextAlign.Center
+                textAlign  = TextAlign.Center,
+                style = MaterialTheme.typography.titleLarge
             )
 
             Spacer(Modifier.height(10.dp))

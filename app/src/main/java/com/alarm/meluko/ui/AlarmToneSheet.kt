@@ -83,19 +83,15 @@ fun AlarmToneSheet(
         ) {
             Text(
                 text = "ALARM TONE",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Black,
-                fontFamily = DefaultFontFamily,
-                letterSpacing = 3.sp,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(horizontal = 24.dp)
+                modifier = Modifier.padding(horizontal = 24.dp),
+                style = MaterialTheme.typography.labelMedium
             )
             Text(
                 text = "Tap to preview. It plays at your alarm volume.",
-                fontSize = 13.sp,
-                fontFamily = BodyFontFamily,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 6.dp)
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 6.dp),
+                style = MaterialTheme.typography.bodySmall
             )
             Spacer(Modifier.height(8.dp))
 

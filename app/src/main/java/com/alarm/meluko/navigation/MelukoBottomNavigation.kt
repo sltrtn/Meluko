@@ -118,11 +118,9 @@ fun MelukoBottomNavigation(
                         Text(
                             text = item.label,
                             modifier = Modifier.padding(start = 8.dp),
-                            fontFamily = DefaultFontFamily,
-                            fontWeight = FontWeight.Black,
-                            fontSize = 12.sp,
                             color = contentColor,
-                            maxLines = 1
+                            maxLines = 1,
+                            style = MaterialTheme.typography.labelSmall
                         )
                     }
                 }

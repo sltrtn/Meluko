@@ -79,41 +79,33 @@ fun VetoBottomSheet(
                 Spacer(Modifier.height(24.dp))
                 Text(
                     text = "VETO CAST!",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Black,
-                    fontFamily = DefaultFontFamily,
                     letterSpacing = 3.sp,
                     color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.titleLarge,
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = "The proposal has been killed.\nYour tribe will keep the current time.",
-                    fontSize = 13.sp,
-                    fontFamily = BodyFontFamily,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
-                    lineHeight = 18.sp,
+                    style = MaterialTheme.typography.bodySmall,
                 )
                 Spacer(Modifier.height(24.dp))
             } else {
                 Text(
                     text       = "CAST VETO",
-                    fontSize   = 22.sp,
-                    fontWeight = FontWeight.Black,
-                    fontFamily = DefaultFontFamily,
                     letterSpacing = 2.sp,
-                    color      = MaterialTheme.colorScheme.error
+                    color      = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.titleLarge
                 )
 
                 Spacer(Modifier.height(16.dp))
 
                 Text(
                     text       = "Are you absolutely sure? A veto will instantly kill this proposal for the entire tribe.",
-                    fontSize   = 14.sp,
-                    fontFamily = BodyFontFamily,
                     color      = MaterialTheme.colorScheme.onSurface,
                     textAlign  = TextAlign.Center,
-                    lineHeight = 20.sp
+                    style = MaterialTheme.typography.bodyMedium
                 )
 
                 Spacer(Modifier.height(24.dp))
@@ -129,10 +121,8 @@ fun VetoBottomSheet(
                     ) {
                         Text(
                             text = "VETOS REMAINING:",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = DefaultFontFamily,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelSmall
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             repeat(2) { index ->
@@ -147,8 +137,8 @@ fun VetoBottomSheet(
                                 ) { active ->
                                     Text(
                                         text = if (active) "\uD83D\uDD25" else "\u25CB",
-                                        fontSize = 16.sp,
-                                        modifier = Modifier.alpha(if (active) 1f else 0.3f)
+                                        modifier = Modifier.alpha(if (active) 1f else 0.3f),
+                                        style = MaterialTheme.typography.bodyLarge
                                     )
                                 }
                             }
@@ -175,9 +165,7 @@ fun VetoBottomSheet(
                     ) {
                         Text(
                             text       = "NO, CANCEL",
-                            fontSize   = 14.sp,
-                            fontWeight = FontWeight.Black,
-                            fontFamily = DefaultFontFamily
+                            style = MaterialTheme.typography.titleSmall
                         )
                     }
 
@@ -208,9 +196,7 @@ fun VetoBottomSheet(
                         } else {
                             Text(
                                 text       = "YES, VETO",
-                                fontSize   = 14.sp,
-                                fontWeight = FontWeight.Black,
-                                fontFamily = DefaultFontFamily
+                                style = MaterialTheme.typography.titleSmall
                             )
                         }
                     }

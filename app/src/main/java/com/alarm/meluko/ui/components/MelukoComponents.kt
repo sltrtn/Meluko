@@ -144,12 +144,9 @@ fun SectionHeader(
     ) {
         Text(
             text = title.uppercase(),
-            fontSize = 12.sp,
-            fontWeight = FontWeight.ExtraBold,
-            fontFamily = DefaultFontFamily,
-            letterSpacing = 1.6.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.labelMedium
         )
         trailing?.invoke()
     }
@@ -261,20 +258,15 @@ fun StatTile(
             Column {
                 Text(
                     text = "$prefix$shown$suffix",
-                    fontSize = 26.sp,
-                    lineHeight = 28.sp,
-                    fontWeight = FontWeight.Black,
-                    fontFamily = DefaultFontFamily,
                     color = content,
-                    maxLines = 1
+                    maxLines = 1,
+                    style = MaterialTheme.typography.headlineSmall
                 )
                 Text(
                     text = label,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    fontFamily = BodyFontFamily,
                     color = content.copy(alpha = 0.72f),
-                    maxLines = 1
+                    maxLines = 2,
+                    style = MaterialTheme.typography.labelSmall
                 )
             }
         }
@@ -337,10 +329,8 @@ fun StatusLabel(status: WakeStatus, wakeTime: String?, modifier: Modifier = Modi
                 WakeStatus.Sleeping -> "Sleeping"
                 WakeStatus.Missed -> "Missed"
             },
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            fontFamily = BodyFontFamily,
-            color = color
+            color = color,
+            style = MaterialTheme.typography.labelSmall
         )
     }
 }
@@ -361,9 +351,8 @@ fun MelukoLoading(modifier: Modifier = Modifier, label: String? = null) {
                 Spacer(Modifier.height(12.dp))
                 Text(
                     text = label,
-                    fontSize = 13.sp,
-                    fontFamily = BodyFontFamily,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
         }

@@ -238,9 +238,6 @@ fun AccountScreen(
                 val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
                 Text(
                     text = "MELUKO",
-                    fontFamily = DefaultFontFamily,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 28.sp,
                     letterSpacing = 4.sp,
                     modifier = Modifier.clickable(
                         interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
@@ -257,7 +254,8 @@ fun AccountScreen(
                                 androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove
                             )
                         }
-                    }
+                    },
+                    style = MaterialTheme.typography.headlineMedium
                 )
             },
             text = {
@@ -270,16 +268,13 @@ fun AccountScreen(
                     )
                     Text(
                         text = "Wake up together.\nStay accountable.",
-                        fontFamily = DefaultFontFamily,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
+                        style = MaterialTheme.typography.titleMedium
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
                         text = "Meluko is a social alarm app that helps you and your friends build consistent morning routines through accountability, healthy competition, and shared rituals.",
-                        fontFamily = BodyFontFamily,
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall
                     )
 
                     // ── Easter egg ─────────────────────────────────────────
@@ -317,34 +312,27 @@ fun AccountScreen(
                                 ) {
                                     Text(
                                         text = "S",
-                                        fontFamily = DefaultFontFamily,
-                                        fontWeight = FontWeight.Black,
-                                        fontSize = 22.sp,
-                                        color = Color(0xFF2A1100)
+                                        color = Color(0xFF2A1100),
+                                        style = MaterialTheme.typography.titleLarge
                                     )
                                 }
                                 Spacer(Modifier.width(14.dp))
                                 Column {
                                     Text(
                                         text = "Slater",
-                                        fontFamily = DefaultFontFamily,
-                                        fontWeight = FontWeight.Black,
-                                        fontSize = 20.sp,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        style = MaterialTheme.typography.titleLarge
                                     )
                                     Text(
                                         text = "The one who started it all.",
-                                        fontFamily = BodyFontFamily,
-                                        fontSize = 13.sp,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                                        style = MaterialTheme.typography.bodySmall
                                     )
                                     Text(
                                         text = "github.com/sltrtn",
-                                        fontFamily = BodyFontFamily,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 12.sp,
                                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
-                                        textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
+                                        textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
+                                        style = MaterialTheme.typography.labelSmall
                                     )
                                 }
                             }
@@ -356,9 +344,8 @@ fun AccountScreen(
                         val left = 7 - easterEggTaps
                         Text(
                             text = "You're $left ${if (left == 1) "tap" else "taps"} away…",
-                            fontFamily = BodyFontFamily,
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            style = MaterialTheme.typography.labelSmall
                         )
                     }
                 }
@@ -386,8 +373,7 @@ fun AccountScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         text = "This permanently deletes your profile, streaks, and tribe memberships. This can't be undone.",
-                        fontFamily = BodyFontFamily,
-                        fontSize = 13.sp
+                        style = MaterialTheme.typography.bodySmall
                     )
                     if (isUpdating) {
                         Spacer(Modifier.height(4.dp))
@@ -565,10 +551,9 @@ fun AccountScreen(
                 Spacer(Modifier.height(20.dp))
                 Text(
                     text = "Meluko ${com.alarm.meluko.BuildConfig.VERSION_NAME} · wake up together",
-                    fontSize = 12.sp,
-                    fontFamily = BodyFontFamily,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                    style = MaterialTheme.typography.labelSmall
                 )
 
                 Spacer(Modifier.height(128.dp))
@@ -622,31 +607,24 @@ private fun ProfileHero(
             Spacer(Modifier.height(14.dp))
             Text(
                 text = displayName.ifBlank { "You" },
-                fontSize = 26.sp,
-                lineHeight = 30.sp,
-                fontWeight = FontWeight.Black,
-                fontFamily = DefaultFontFamily,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.headlineSmall
             )
             if (username.isNotBlank()) {
                 Text(
                     text = "@$username",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    fontFamily = BodyFontFamily,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium
                 )
             }
             if (bio.isNotBlank()) {
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = bio,
-                    fontSize = 14.sp,
-                    lineHeight = 19.sp,
-                    fontFamily = BodyFontFamily,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                     textAlign = TextAlign.Center,
-                    maxLines = 3
+                    maxLines = 3,
+                    style = MaterialTheme.typography.bodyMedium
                 )
             }
             Spacer(Modifier.height(16.dp))
@@ -658,11 +636,9 @@ private fun ProfileHero(
                     Surface(shape = CircleShape, color = c.glassTint) {
                         Text(
                             text = tribeName,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = DefaultFontFamily,
                             color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                            style = MaterialTheme.typography.titleSmall
                         )
                     }
                 }
@@ -710,17 +686,14 @@ private fun SettingsRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = label,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = DefaultFontFamily,
-                    color = labelColor
+                    color = labelColor,
+                    style = MaterialTheme.typography.titleMedium
                 )
                 if (subtitle != null) {
                     Text(
                         text = subtitle,
-                        fontSize = 13.sp,
-                        fontFamily = BodyFontFamily,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall
                     )
                 }
             }

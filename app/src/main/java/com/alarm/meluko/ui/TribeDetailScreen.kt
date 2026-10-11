@@ -316,9 +316,8 @@ fun TribeDetailScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             text = tribeError!!,
-                            fontSize = 14.sp,
-                            fontFamily = BodyFontFamily,
-                            color = MaterialTheme.colorScheme.error
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyMedium
                         )
                         Spacer(Modifier.height(12.dp))
                         Button(onClick = onBack) { Text("Go back", fontFamily = DefaultFontFamily) }
@@ -361,17 +360,13 @@ fun TribeDetailScreen(
                 Spacer(Modifier.height(14.dp))
                 Text(
                     text = tribeName.ifBlank { "Tribe" },
-                    fontSize = 30.sp,
-                    lineHeight = 34.sp,
-                    fontWeight = FontWeight.Black,
-                    fontFamily = DefaultFontFamily,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.headlineMedium
                 )
                 Text(
                     text = plural(tribeMemberCount, "member"),
-                    fontSize = 14.sp,
-                    fontFamily = BodyFontFamily,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium
                 )
             }
 
@@ -398,30 +393,22 @@ fun TribeDetailScreen(
                     Column {
                         Text(
                             "TRIBE ALARM",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontFamily = DefaultFontFamily,
-                            letterSpacing = 1.6.sp,
-                            color = Color(0xFF2A1100).copy(alpha = 0.7f)
+                            color = Color(0xFF2A1100).copy(alpha = 0.7f),
+                            style = MaterialTheme.typography.labelMedium
                         )
                         Spacer(Modifier.height(4.dp))
                         Row(verticalAlignment = Alignment.Bottom) {
                             Text(
                                 alarmClock,
-                                fontSize = 36.sp,
-                                lineHeight = 38.sp,
-                                fontWeight = FontWeight.Black,
-                                fontFamily = DefaultFontFamily,
-                                color = Color(0xFF2A1100)
+                                color = Color(0xFF2A1100),
+                                style = MaterialTheme.typography.headlineLarge
                             )
                             Spacer(Modifier.width(4.dp))
                             Text(
                                 alarmAmPm,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Black,
-                                fontFamily = DefaultFontFamily,
                                 color = Color(0xFF2A1100).copy(alpha = 0.8f),
-                                modifier = Modifier.padding(bottom = 6.dp)
+                                modifier = Modifier.padding(bottom = 6.dp),
+                                style = MaterialTheme.typography.titleSmall
                             )
                         }
                     }
@@ -440,20 +427,15 @@ fun TribeDetailScreen(
                         Column(Modifier.padding(18.dp)) {
                             Text(
                                 "INVITE CODE",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontFamily = DefaultFontFamily,
-                                letterSpacing = 1.6.sp,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
+                                color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f),
+                                style = MaterialTheme.typography.labelMedium
                             )
                             Spacer(Modifier.height(6.dp))
                             Text(
                                 tribeInviteCode,
-                                fontSize = 22.sp,
-                                fontWeight = FontWeight.Black,
-                                fontFamily = DefaultFontFamily,
                                 letterSpacing = 2.sp,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                style = MaterialTheme.typography.titleLarge
                             )
                             Spacer(Modifier.height(4.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -465,9 +447,8 @@ fun TribeDetailScreen(
                                 Spacer(Modifier.width(4.dp))
                                 Text(
                                     "Tap to copy",
-                                    fontSize = 12.sp,
-                                    fontFamily = BodyFontFamily,
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f),
+                                    style = MaterialTheme.typography.labelSmall
                                 )
                             }
                         }
@@ -632,11 +613,9 @@ private fun TribeActionRow(
             Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
             Text(
                 text = label,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = DefaultFontFamily,
                 color = tint,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleMedium
             )
             Icon(
                 Icons.AutoMirrored.Rounded.KeyboardArrowRight, null,
@@ -670,22 +649,17 @@ private fun ProposalCard(
                 Spacer(Modifier.width(8.dp))
                 Text(
                     "PROPOSAL",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontFamily = DefaultFontFamily,
-                    letterSpacing = 1.6.sp,
                     color = onCard.copy(alpha = 0.8f),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelMedium
                 )
                 if (countdownText.isNotBlank()) {
                     Surface(shape = CircleShape, color = onCard.copy(alpha = 0.12f)) {
                         Text(
                             countdownText,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = BodyFontFamily,
                             color = onCard,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            style = MaterialTheme.typography.labelSmall
                         )
                     }
                 }
@@ -693,9 +667,8 @@ private fun ProposalCard(
             Spacer(Modifier.height(12.dp))
             Text(
                 text = "$proposerName wants to move the alarm to",
-                fontSize = 15.sp,
-                fontFamily = BodyFontFamily,
-                color = onCard
+                color = onCard,
+                style = MaterialTheme.typography.bodyLarge
             )
             Text(
                 text = to12HourDisplay(proposedTime),
@@ -707,30 +680,24 @@ private fun ProposalCard(
             )
             Text(
                 text = "It goes through automatically when the timer ends. One veto cancels it.",
-                fontSize = 13.sp,
-                lineHeight = 17.sp,
-                fontFamily = BodyFontFamily,
-                color = onCard.copy(alpha = 0.75f)
+                color = onCard.copy(alpha = 0.75f),
+                style = MaterialTheme.typography.bodySmall
             )
             Spacer(Modifier.height(16.dp))
             when {
                 isMine -> Text(
                     "This is your proposal. Waiting on the tribe.",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = DefaultFontFamily,
                     color = onCard,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    style = MaterialTheme.typography.titleSmall
                 )
                 alreadyVetoed -> Text(
                     "You vetoed this one.",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = DefaultFontFamily,
                     color = onCard,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    style = MaterialTheme.typography.titleSmall
                 )
                 canVeto -> Button(
                     onClick = onVetoClick,
@@ -752,11 +719,10 @@ private fun ProposalCard(
                 }
                 else -> Text(
                     "You're out of vetoes.",
-                    fontSize = 14.sp,
-                    fontFamily = BodyFontFamily,
                     color = onCard.copy(alpha = 0.7f),
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    style = MaterialTheme.typography.bodyMedium
                 )
             }
         }

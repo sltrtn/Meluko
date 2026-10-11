@@ -5,132 +5,65 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import com.alarm.meluko.R
 
+// Outfit, the weights Meluko actually uses.
 val DefaultFontFamily = FontFamily(
-    Font(R.font.outfit_thin,       FontWeight.Thin),
-    Font(R.font.outfit_extralight, FontWeight.ExtraLight),
-    Font(R.font.outfit_light,      FontWeight.Light),
-    Font(R.font.outfit_regular,    FontWeight.Normal),
-    Font(R.font.outfit_medium,     FontWeight.Medium),
-    Font(R.font.outfit_semibold,   FontWeight.SemiBold),
-    Font(R.font.outfit_bold,       FontWeight.Bold),
-    Font(R.font.outfit_extrabold,  FontWeight.ExtraBold),
-    Font(R.font.outfit_black,      FontWeight.Black),
+    Font(R.font.outfit_regular,   FontWeight.Normal),
+    Font(R.font.outfit_medium,    FontWeight.Medium),
+    Font(R.font.outfit_semibold,  FontWeight.SemiBold),
+    Font(R.font.outfit_bold,      FontWeight.Bold),
+    Font(R.font.outfit_extrabold, FontWeight.ExtraBold),
+    Font(R.font.outfit_black,     FontWeight.Black),
 )
 
-val BodyFontFamily = FontFamily(
-    Font(R.font.outfit_medium, FontWeight.Normal),
-    Font(R.font.outfit_medium, FontWeight.Medium),
-    Font(R.font.outfit_semibold, FontWeight.SemiBold),
-    Font(R.font.outfit_bold, FontWeight.Bold),
+/** Same family as [DefaultFontFamily]; kept as a name for body copy call sites. */
+val BodyFontFamily = DefaultFontFamily
+
+// Tabular figures: every digit is the same width, so clocks, countdowns and
+// counters don't jiggle sideways as they tick. Outfit ships the "tnum" feature.
+private const val TABULAR = "tnum"
+
+private fun style(
+    size: Int,
+    lineHeight: Int,
+    weight: FontWeight,
+    tracking: TextUnit = 0.sp,
+) = TextStyle(
+    fontFamily = DefaultFontFamily,
+    fontWeight = weight,
+    fontSize = size.sp,
+    lineHeight = lineHeight.sp,
+    letterSpacing = tracking,
+    fontFeatureSettings = TABULAR,
 )
 
+/**
+ * Meluko type scale. Use these roles instead of hand-picked sizes:
+ * display/headline for heroes and screen titles, title for card titles and
+ * names, body for copy (Regular), label for buttons/chips/eyebrows.
+ * Uppercase eyebrows use labelMedium (tracked out).
+ */
 val Typography = Typography(
-    displayLarge = TextStyle(
-        fontFamily    = DefaultFontFamily,
-        fontWeight    = FontWeight.Black,
-        fontSize      = 57.sp,
-        lineHeight    = 64.sp,
-        letterSpacing = (-0.25).sp
-    ),
-    displayMedium = TextStyle(
-        fontFamily    = DefaultFontFamily,
-        fontWeight    = FontWeight.Black,
-        fontSize      = 45.sp,
-        lineHeight    = 52.sp,
-        letterSpacing = 0.sp
-    ),
-    displaySmall = TextStyle(
-        fontFamily    = DefaultFontFamily,
-        fontWeight    = FontWeight.Black,
-        fontSize      = 36.sp,
-        lineHeight    = 44.sp,
-        letterSpacing = 0.sp
-    ),
-    headlineLarge = TextStyle(
-        fontFamily    = DefaultFontFamily,
-        fontWeight    = FontWeight.ExtraBold,
-        fontSize      = 32.sp,
-        lineHeight    = 40.sp,
-        letterSpacing = 0.sp
-    ),
-    headlineMedium = TextStyle(
-        fontFamily    = DefaultFontFamily,
-        fontWeight    = FontWeight.ExtraBold,
-        fontSize      = 28.sp,
-        lineHeight    = 36.sp,
-        letterSpacing = 0.sp
-    ),
-    headlineSmall = TextStyle(
-        fontFamily    = DefaultFontFamily,
-        fontWeight    = FontWeight.ExtraBold,
-        fontSize      = 24.sp,
-        lineHeight    = 32.sp,
-        letterSpacing = 0.sp
-    ),
-    titleLarge = TextStyle(
-        fontFamily    = DefaultFontFamily,
-        fontWeight    = FontWeight.ExtraBold,
-        fontSize      = 22.sp,
-        lineHeight    = 28.sp,
-        letterSpacing = 0.sp
-    ),
-    titleMedium = TextStyle(
-        fontFamily    = DefaultFontFamily,
-        fontWeight    = FontWeight.SemiBold,
-        fontSize      = 16.sp,
-        lineHeight    = 24.sp,
-        letterSpacing = 0.15.sp
-    ),
-    titleSmall = TextStyle(
-        fontFamily    = DefaultFontFamily,
-        fontWeight    = FontWeight.SemiBold,
-        fontSize      = 14.sp,
-        lineHeight    = 20.sp,
-        letterSpacing = 0.1.sp
-    ),
-    bodyLarge = TextStyle(
-        fontFamily    = BodyFontFamily,
-        fontWeight    = FontWeight.Normal,
-        fontSize      = 16.sp,
-        lineHeight    = 24.sp,
-        letterSpacing = 0.5.sp
-    ),
-    bodyMedium = TextStyle(
-        fontFamily    = BodyFontFamily,
-        fontWeight    = FontWeight.Normal,
-        fontSize      = 14.sp,
-        lineHeight    = 20.sp,
-        letterSpacing = 0.25.sp
-    ),
-    bodySmall = TextStyle(
-        fontFamily    = BodyFontFamily,
-        fontWeight    = FontWeight.Normal,
-        fontSize      = 12.sp,
-        lineHeight    = 16.sp,
-        letterSpacing = 0.4.sp
-    ),
-    labelLarge = TextStyle(
-        fontFamily    = BodyFontFamily,
-        fontWeight    = FontWeight.Medium,
-        fontSize      = 14.sp,
-        lineHeight    = 20.sp,
-        letterSpacing = 0.1.sp
-    ),
-    labelMedium = TextStyle(
-        fontFamily    = BodyFontFamily,
-        fontWeight    = FontWeight.Normal,
-        fontSize      = 12.sp,
-        lineHeight    = 16.sp,
-        letterSpacing = 0.5.sp
-    ),
-    labelSmall = TextStyle(
-        fontFamily    = BodyFontFamily,
-        fontWeight    = FontWeight.Normal,
-        fontSize      = 11.sp,
-        lineHeight    = 16.sp,
-        letterSpacing = 0.5.sp
-    )
+    displayLarge   = style(57, 62, FontWeight.Black, (-0.25).sp),
+    displayMedium  = style(45, 50, FontWeight.Black),
+    displaySmall   = style(36, 42, FontWeight.Black),
+
+    headlineLarge  = style(32, 36, FontWeight.Black),
+    headlineMedium = style(28, 32, FontWeight.Black),
+    headlineSmall  = style(24, 30, FontWeight.ExtraBold),
+
+    titleLarge     = style(20, 26, FontWeight.ExtraBold),
+    titleMedium    = style(16, 22, FontWeight.Bold),
+    titleSmall     = style(14, 20, FontWeight.Bold),
+
+    bodyLarge      = style(16, 24, FontWeight.Normal),
+    bodyMedium     = style(14, 20, FontWeight.Normal),
+    bodySmall      = style(13, 18, FontWeight.Normal),
+
+    labelLarge     = style(14, 20, FontWeight.ExtraBold, 0.2.sp),
+    labelMedium    = style(12, 16, FontWeight.ExtraBold, 1.6.sp),
+    labelSmall     = style(12, 16, FontWeight.SemiBold),
 )

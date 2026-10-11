@@ -1,5 +1,6 @@
 package com.alarm.meluko.ui
 
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeOut
@@ -123,11 +124,8 @@ fun AlarmScreen(
         ) {
             Text(
                 text = greetingFor(now).uppercase(),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = DefaultFontFamily,
-                letterSpacing = 4.sp,
-                color = SunriseGold.copy(alpha = 0.8f)
+                color = SunriseGold.copy(alpha = 0.8f),
+                style = MaterialTheme.typography.labelMedium
             )
 
             Spacer(Modifier.height(20.dp))
@@ -157,21 +155,17 @@ fun AlarmScreen(
                     Spacer(Modifier.width(8.dp))
                     Text(
                         text = SimpleDateFormat("a", Locale.US).format(now),
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = DefaultFontFamily,
                         color = Color.White.copy(alpha = 0.55f),
-                        modifier = Modifier.padding(bottom = 18.dp)
+                        modifier = Modifier.padding(bottom = 18.dp),
+                        style = MaterialTheme.typography.titleLarge
                     )
                 }
             }
 
             Text(
                 text = SimpleDateFormat("EEEE, MMMM d", locale).format(now),
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                fontFamily = BodyFontFamily,
-                color = Color.White.copy(alpha = 0.6f)
+                color = Color.White.copy(alpha = 0.6f),
+                style = MaterialTheme.typography.bodyLarge
             )
 
             Spacer(Modifier.height(36.dp))
@@ -250,11 +244,9 @@ private fun TribeStrip(tribe: AlarmTribeSnapshot) {
         }
         Text(
             text = message,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            fontFamily = BodyFontFamily,
             color = Color.White.copy(alpha = 0.85f),
-            maxLines = 1
+            maxLines = 1,
+            style = MaterialTheme.typography.bodySmall
         )
     }
 }
@@ -331,10 +323,8 @@ private fun WakeCelebrationOverlay(celebration: WakeCelebration, reduceMotion: B
         ) {
             Text(
                 text = greeting,
-                fontSize = 34.sp,
-                fontWeight = FontWeight.Black,
-                fontFamily = DefaultFontFamily,
-                color = Color.White
+                color = Color.White,
+                style = MaterialTheme.typography.headlineLarge
             )
             val streak = shownStreak
             if (streak != null) {
@@ -358,12 +348,9 @@ private fun WakeCelebrationOverlay(celebration: WakeCelebration, reduceMotion: B
                 }
                 Text(
                     text = if (celebration.streakDays == 1) "DAY STREAK STARTED" else "DAY STREAK",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = DefaultFontFamily,
-                    letterSpacing = 4.sp,
                     color = Color.White.copy(alpha = 0.85f),
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.labelMedium
                 )
             }
         }

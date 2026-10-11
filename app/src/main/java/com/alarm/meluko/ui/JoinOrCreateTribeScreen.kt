@@ -112,12 +112,10 @@ fun JoinOrCreateTribeScreen(
                         ) {
                     Text(
                         text = label,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = BodyFontFamily,
                         color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(vertical = 10.dp)
+                                modifier = Modifier.padding(vertical = 10.dp),
+                                style = MaterialTheme.typography.titleSmall
                             )
                         }
                     }
@@ -163,9 +161,8 @@ fun JoinOrCreateTribeScreen(
                             Spacer(Modifier.height(12.dp))
                             Text(
                                 text = "Ask your tribe admin for their 6-character invite code.",
-                                fontSize = 12.sp,
-                                fontFamily = BodyFontFamily,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                style = MaterialTheme.typography.labelSmall
                             )
                         }
                     } else {
@@ -227,9 +224,8 @@ fun JoinOrCreateTribeScreen(
                                             modifier = Modifier.size(16.dp))
                                         Text(
                                             text = "Your tribe will get a 6-digit invite code for others to join.",
-                                            fontSize = 12.sp,
-                                            fontFamily = BodyFontFamily,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            style = MaterialTheme.typography.labelSmall
                                         )
                                     }
                                 }
@@ -248,8 +244,7 @@ fun JoinOrCreateTribeScreen(
                             text = error!!,
                             color = MaterialTheme.colorScheme.onErrorContainer,
                             modifier = Modifier.padding(12.dp),
-                            fontSize = 13.sp,
-                            fontFamily = BodyFontFamily
+                            style = MaterialTheme.typography.bodySmall
                         )
                     }
                 }
@@ -282,10 +277,8 @@ fun JoinOrCreateTribeScreen(
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
                                 text = if (isJoining) "JOIN TRIBE" else "CREATE TRIBE",
-                                fontWeight = FontWeight.Black,
-                                fontFamily = DefaultFontFamily,
-                                fontSize = 15.sp,
-                                letterSpacing = 2.sp
+                                letterSpacing = 2.sp,
+                                style = MaterialTheme.typography.titleMedium
                             )
                             Icon(Icons.Rounded.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
                         }

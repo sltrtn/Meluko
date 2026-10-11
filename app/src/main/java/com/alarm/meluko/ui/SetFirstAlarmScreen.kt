@@ -123,11 +123,10 @@ fun SetFirstAlarmScreen(
                     if (error != null) {
                         Text(
                             text = error!!,
-                            fontSize = 12.sp,
-                            fontFamily = BodyFontFamily,
                             color = MaterialTheme.colorScheme.error,
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(bottom = 16.dp)
+                            modifier = Modifier.padding(bottom = 16.dp),
+                            style = MaterialTheme.typography.labelSmall
                         )
                     }
 
@@ -161,11 +160,9 @@ fun SetFirstAlarmScreen(
                         } else {
                             Text(
                                 text = "SET & CONTINUE",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Black,
-                                fontFamily = DefaultFontFamily,
                                 letterSpacing = 2.sp,
-                                color = MaterialTheme.colorScheme.onPrimary
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                style = MaterialTheme.typography.titleMedium
                             )
                         }
                     }
@@ -175,10 +172,8 @@ fun SetFirstAlarmScreen(
                     TextButton(onClick = onFinish) {
                         Text(
                             text = "Skip, use default (07:30)",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = BodyFontFamily,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelSmall
                         )
                     }
                 }

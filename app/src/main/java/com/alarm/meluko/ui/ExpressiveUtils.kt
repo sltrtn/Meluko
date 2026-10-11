@@ -125,20 +125,14 @@ fun ScreenHeader(
         Column(Modifier.weight(1f)) {
             Text(
                 text = (eyebrow ?: today).uppercase(),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = DefaultFontFamily,
-                letterSpacing = 1.4.sp,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.labelMedium
             )
             Spacer(Modifier.height(2.dp))
             Text(
                 text = title,
-                fontSize = 32.sp,
-                lineHeight = 36.sp,
-                fontWeight = FontWeight.Black,
-                fontFamily = DefaultFontFamily,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.headlineLarge
             )
         }
         trailing?.invoke()

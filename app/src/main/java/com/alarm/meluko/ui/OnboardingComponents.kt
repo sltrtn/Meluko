@@ -114,11 +114,8 @@ fun OnboardingStepHeader(
 
         Text(
             text = "STEP $step OF $totalSteps",
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = com.alarm.meluko.ui.theme.DefaultFontFamily,
-            letterSpacing = 3.sp,
-            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+            style = MaterialTheme.typography.labelMedium
         )
 
         Spacer(Modifier.height(16.dp))
@@ -137,11 +134,9 @@ fun OnboardingStepHeader(
 
         Text(
             text = subtitle,
-            fontSize = 15.sp,
-            fontFamily = com.alarm.meluko.ui.theme.BodyFontFamily,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
-            lineHeight = 22.sp
+            style = MaterialTheme.typography.bodyLarge
         )
     }
 }

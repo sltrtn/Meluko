@@ -111,34 +111,26 @@ fun OnboardingScreen(onFinish: () -> Unit) {
 
                         Text(
                             text = pages[page].eyebrow,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = DefaultFontFamily,
-                            letterSpacing = 3.sp,
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                            style = MaterialTheme.typography.labelMedium
                         )
 
                         Spacer(Modifier.height(12.dp))
 
                         Text(
                             text = pages[page].title,
-                            fontSize = 30.sp,
-                            fontWeight = FontWeight.Black,
-                            fontFamily = DefaultFontFamily,
                             color = MaterialTheme.colorScheme.onBackground,
                             textAlign = TextAlign.Center,
-                            lineHeight = 36.sp
+                            style = MaterialTheme.typography.headlineMedium
                         )
 
                         Spacer(Modifier.height(12.dp))
 
                         Text(
                             text = pages[page].body,
-                            fontSize = 15.sp,
-                            fontFamily = BodyFontFamily,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
-                            lineHeight = 22.sp
+                            style = MaterialTheme.typography.bodyLarge
                         )
                     }
                 }
@@ -180,10 +172,8 @@ fun OnboardingScreen(onFinish: () -> Unit) {
                 ) {
                     Text(
                         text = if (isLastPage) "GET STARTED" else "NEXT",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Black,
-                        fontFamily = DefaultFontFamily,
-                        letterSpacing = 2.sp
+                        letterSpacing = 2.sp,
+                        style = MaterialTheme.typography.titleMedium
                     )
                 }
             }
@@ -201,10 +191,8 @@ fun OnboardingScreen(onFinish: () -> Unit) {
             TextButton(onClick = onFinish) {
                 Text(
                     text = "Skip",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = BodyFontFamily,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.titleSmall
                 )
             }
         }

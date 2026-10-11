@@ -78,8 +78,7 @@ fun SocialScreen(
             Text(
                 text = state.message,
                 color = MaterialTheme.colorScheme.error,
-                fontSize = 14.sp,
-                fontFamily = BodyFontFamily
+                style = MaterialTheme.typography.bodyMedium
             )
         }
         is SocialUiState.Success -> SocialContent(
@@ -168,18 +167,14 @@ private fun SocialContent(
                         Spacer(Modifier.width(12.dp))
                         Text(
                             text = member.name,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = DefaultFontFamily,
                             color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.titleMedium
                         )
                         Text(
                             text = "zzz",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Black,
-                            fontFamily = DefaultFontFamily,
-                            color = MelukoTheme.colors.sleeping
+                            color = MelukoTheme.colors.sleeping,
+                            style = MaterialTheme.typography.titleSmall
                         )
                     }
                 }
@@ -232,29 +227,23 @@ private fun MorningBoard(
             Column(Modifier.weight(1f)) {
                 Text(
                     text = mood,
-                    fontSize = 26.sp,
-                    lineHeight = 30.sp,
-                    fontWeight = FontWeight.Black,
-                    fontFamily = DefaultFontFamily,
-                    color = Color.White
+                    color = Color.White,
+                    style = MaterialTheme.typography.headlineSmall
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = sub,
-                    fontSize = 14.sp,
-                    fontFamily = BodyFontFamily,
-                    color = Color.White.copy(alpha = 0.85f)
+                    color = Color.White.copy(alpha = 0.85f),
+                    style = MaterialTheme.typography.bodyMedium
                 )
                 if (youRank > 0) {
                     Spacer(Modifier.height(14.dp))
                     Surface(shape = CircleShape, color = Color.White.copy(alpha = 0.22f)) {
                         Text(
                             text = "You're #$youRank in the tribe",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontFamily = DefaultFontFamily,
                             color = Color.White,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                            style = MaterialTheme.typography.titleSmall
                         )
                     }
                 }
@@ -269,18 +258,13 @@ private fun MorningBoard(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = "$shownAwake/$total",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Black,
-                        fontFamily = DefaultFontFamily,
-                        color = Color.White
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleLarge
                     )
                     Text(
                         text = "UP",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontFamily = DefaultFontFamily,
-                        letterSpacing = 1.5.sp,
-                        color = Color.White.copy(alpha = 0.8f)
+                        color = Color.White.copy(alpha = 0.8f),
+                        style = MaterialTheme.typography.labelMedium
                     )
                 }
             }
@@ -316,11 +300,9 @@ internal fun LeaderboardRow(
             Column(Modifier.weight(1f)) {
                 Text(
                     text = if (member.isYou) "${member.name} (you)" else member.name,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontFamily = DefaultFontFamily,
                     color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1
+                    maxLines = 1,
+                    style = MaterialTheme.typography.titleMedium
                 )
                 Spacer(Modifier.height(2.dp))
                 StatusLabel(member.status, member.wakeTime)
@@ -335,10 +317,8 @@ internal fun LeaderboardRow(
                 Spacer(Modifier.width(2.dp))
                 Text(
                     text = "${member.streakDays}",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Black,
-                    fontFamily = DefaultFontFamily,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleMedium
                 )
             }
             trailing?.invoke()
@@ -351,10 +331,9 @@ internal fun EmptyHint(text: String, modifier: Modifier = Modifier) {
     MelukoCard(modifier = modifier.fillMaxWidth()) {
         Text(
             text = text,
-            fontSize = 14.sp,
-            fontFamily = BodyFontFamily,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(20.dp)
+            modifier = Modifier.padding(20.dp),
+            style = MaterialTheme.typography.bodyMedium
         )
     }
 }

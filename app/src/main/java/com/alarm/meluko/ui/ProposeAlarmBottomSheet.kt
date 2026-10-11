@@ -101,38 +101,30 @@ fun ProposeAlarmBottomSheet(
                 Spacer(Modifier.height(24.dp))
                 Text(
                     text = "PROPOSAL SENT!",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Black,
-                    fontFamily = DefaultFontFamily,
                     letterSpacing = 3.sp,
                     color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.titleLarge,
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = "The tribe has 2 hours to veto.\nCheck back to see the result.",
-                    fontSize = 13.sp,
-                    fontFamily = BodyFontFamily,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
-                    lineHeight = 18.sp,
-                    modifier = Modifier.padding(horizontal = 32.dp)
+                    modifier = Modifier.padding(horizontal = 32.dp),
+                    style = MaterialTheme.typography.bodySmall
                 )
                 Spacer(Modifier.height(40.dp))
             } else {
                 Text(
                     text       = "PROPOSE TIME",
-                    fontSize   = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = DefaultFontFamily,
-                    letterSpacing = 4.sp,
-                    color      = MaterialTheme.colorScheme.primary
+                    color      = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelMedium
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text       = "Everyone gets 2 hours to veto it.",
-                    fontSize   = 12.sp,
-                    fontFamily = BodyFontFamily,
-                    color      = MaterialTheme.colorScheme.onSurfaceVariant
+                    color      = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall
                 )
 
                 Spacer(Modifier.height(48.dp))
@@ -216,10 +208,8 @@ fun ProposeAlarmBottomSheet(
                     } else {
                         Text(
                             text       = "SEND PROPOSAL",
-                            fontSize   = 16.sp,
-                            fontWeight = FontWeight.Black,
-                            fontFamily = DefaultFontFamily,
-                            letterSpacing = 2.sp
+                            letterSpacing = 2.sp,
+                            style = MaterialTheme.typography.titleMedium
                         )
                     }
                 }

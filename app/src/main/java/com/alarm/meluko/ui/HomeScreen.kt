@@ -389,13 +389,11 @@ private fun NoticeCard(
                 Spacer(Modifier.width(12.dp))
                 Text(
                     text = text,
-                    fontSize = 13.sp,
-                    lineHeight = 17.sp,
-                    fontFamily = BodyFontFamily,
                     color = content,
                     modifier = Modifier
                         .weight(1f)
-                        .padding(vertical = 8.dp)
+                        .padding(vertical = 8.dp),
+                    style = MaterialTheme.typography.bodySmall
                 )
                 if (actionLabel != null && onAction != null) {
                     TextButton(onClick = onAction) {
@@ -474,11 +472,8 @@ fun AlarmHeroCard(
         Column(Modifier.padding(start = 24.dp, end = 24.dp, top = 22.dp, bottom = 20.dp)) {
             Text(
                 text = "NEXT ALARM",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.ExtraBold,
-                fontFamily = DefaultFontFamily,
-                letterSpacing = 2.sp,
-                color = onHero.copy(alpha = 0.7f)
+                color = onHero.copy(alpha = 0.7f),
+                style = MaterialTheme.typography.labelMedium
             )
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
@@ -492,17 +487,22 @@ fun AlarmHeroCard(
                 Spacer(Modifier.width(8.dp))
                 Text(
                     text = amPm,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Black,
-                    fontFamily = DefaultFontFamily,
                     color = onHero.copy(alpha = 0.8f),
-                    modifier = Modifier.padding(bottom = 14.dp)
+                    modifier = Modifier.padding(bottom = 14.dp),
+                    style = MaterialTheme.typography.titleLarge
                 )
             }
 
             Spacer(Modifier.height(10.dp))
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // FlowRow: one line normally; at large font sizes the action wraps
+            // under the countdown instead of squeezing to "Pro/pos/e".
+            FlowRow(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 // Frosted chip — glass over the warm gradient
                 Surface(
                     shape = CircleShape,
@@ -511,14 +511,12 @@ fun AlarmHeroCard(
                 ) {
                     Text(
                         text = countdown,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = BodyFontFamily,
                         color = onHero,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp)
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
+                        style = MaterialTheme.typography.titleSmall
                     )
                 }
-                Spacer(Modifier.weight(1f))
+                Row(verticalAlignment = Alignment.CenterVertically) {
                 if (BuildConfig.DEBUG) {
                     IconButton(onClick = { AlarmScheduler(context).scheduleIn(5) }) {
                         Icon(Icons.Rounded.BugReport, "Test alarm in 5 seconds", tint = onHero.copy(alpha = 0.6f))
@@ -536,7 +534,7 @@ fun AlarmHeroCard(
                     ) {
                         Icon(Icons.Rounded.HowToVote, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Proposal open", fontWeight = FontWeight.ExtraBold, fontFamily = DefaultFontFamily)
+                        Text("Proposal open", fontWeight = FontWeight.ExtraBold, fontFamily = DefaultFontFamily, maxLines = 1)
                     }
                 } else if (hasTribe) {
                     Button(
@@ -547,8 +545,9 @@ fun AlarmHeroCard(
                     ) {
                         Icon(Icons.Rounded.Alarm, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Propose", fontWeight = FontWeight.ExtraBold, fontFamily = DefaultFontFamily)
+                        Text("Propose", fontWeight = FontWeight.ExtraBold, fontFamily = DefaultFontFamily, maxLines = 1)
                     }
+                }
                 }
             }
         }
@@ -570,9 +569,8 @@ internal fun TribeSummaryCard(
             Column(Modifier.padding(20.dp)) {
                 Text(
                     text = "You're not in a tribe yet. Mornings are better together.",
-                    fontSize = 14.sp,
-                    fontFamily = BodyFontFamily,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium
                 )
                 if (onJoinTribe != null) {
                     Spacer(Modifier.height(14.dp))
@@ -601,17 +599,14 @@ internal fun TribeSummaryCard(
             Column(Modifier.weight(1f)) {
                 Text(
                     text = tribe.name,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontFamily = DefaultFontFamily,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleLarge
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
                     text = "${plural(tribe.totalCount, "member")} · ${tribe.awakeCount} up today",
-                    fontSize = 13.sp,
-                    fontFamily = BodyFontFamily,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
                 )
                 Spacer(Modifier.height(10.dp))
                 AwakeMeter(awake = tribe.awakeCount, total = tribe.totalCount)
@@ -678,10 +673,8 @@ private fun WeekCard(
                 Spacer(Modifier.width(8.dp))
                 Text(
                     text = "Best streak: ${plural(bestStreak, "day")}",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    fontFamily = BodyFontFamily,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(Modifier.weight(1f))
                 Text(
@@ -690,9 +683,8 @@ private fun WeekCard(
                         streakDays >= bestStreak -> "Personal best!"
                         else -> "${bestStreak - streakDays} to beat it"
                     },
-                    fontSize = 13.sp,
-                    fontFamily = BodyFontFamily,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
         }
@@ -727,11 +719,9 @@ private fun DayDot(label: String, mark: DayMark) {
         Spacer(Modifier.height(6.dp))
         Text(
             text = label,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = DefaultFontFamily,
             color = if (mark == DayMark.Today) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.onSurfaceVariant
+            else MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelSmall
         )
     }
 }

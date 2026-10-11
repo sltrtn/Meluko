@@ -72,7 +72,7 @@ Meluko/
 - **Animations:** Spring-based `pressScale()` on interactive elements, `staggeredEnter(index)` cascades, `rememberCountUp` for stats
 - **Shared building blocks:** `ui/components/MelukoComponents.kt` (MelukoCard, StatTile, SectionHeader, ShapeIconBadge, RankBadge, StatusLabel, MelukoLoading, glass)
 - **Bottom sheets:** No drag handle, 32dp top rounding
-- **Typography:** Uppercase section headers with letter spacing
+- **Typography:** Outfit (Regular→Black). Use `MaterialTheme.typography` roles, not hand-picked sizes: display/headline for heroes and titles, title for card titles/names, body (Regular) for copy, label for buttons/chips; uppercase eyebrows = `labelMedium` (tracked). Minimum 12sp. All styles use tabular digits (`tnum`). Only bespoke hero numbers (≥40sp clocks/wheels) set sizes inline.
 - **Splash:** Scatter-letter animation for "MELUKO"
 
 ---
