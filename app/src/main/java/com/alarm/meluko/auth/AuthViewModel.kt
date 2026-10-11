@@ -53,6 +53,24 @@ class AuthViewModel @Inject constructor(
 
     private val firestore get() = FirebaseFirestore.getInstance()
 
+    // Screens get their own AuthViewModel instance from their nav back stack
+    // entry, so a sign-out in one (e.g. Account) must be observed by all of
+    // them — including the one AppNavGraph routes on.
+    private val authListener = FirebaseAuth.AuthStateListener { auth ->
+        if (auth.currentUser == null && _authState.value is AuthState.Success) {
+            _authState.value = AuthState.Idle
+        }
+    }
+
+    init {
+        firebaseAuth.addAuthStateListener(authListener)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        firebaseAuth.removeAuthStateListener(authListener)
+    }
+
     /**
      * Resilient session check: parallelizes reads, retries on failure,
      * and falls back to trusting Firebase Auth if Firestore is unreachable.
