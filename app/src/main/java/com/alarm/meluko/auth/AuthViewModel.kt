@@ -294,6 +294,9 @@ class AuthViewModel @Inject constructor(
      * BuildConfig.DEBUG at the call site (LoginScreen).
      */
     fun debugPreviewSignIn() {
+        // Belt and braces: the button is DEBUG-only, and so is this. In release R8
+        // sees a constant `false` and strips the body.
+        if (!com.alarm.meluko.BuildConfig.DEBUG) return
         viewModelScope.launch {
             _authState.value = AuthState.Loading
             try {

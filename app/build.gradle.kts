@@ -17,21 +17,20 @@ android {
         applicationId = "com.alarm.meluko"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
         create("release") {
-            storeFile = file("release-key.jks")
-            // For real releases, set KEYSTORE_PASSWORD / KEY_PASSWORD env vars.
-            // The fallback matches the locally generated debug keystore and is
-            // gitignored — never commit a production keystore or password.
-            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "meluko-secure-2026"
-            keyAlias = "meluko"
-            keyPassword = System.getenv("KEY_PASSWORD") ?: "meluko-secure-2026"
+            // Credentials come from the environment only — never commit them.
+            // KEYSTORE_PATH defaults to app/release-key.jks (gitignored).
+            storeFile = file(System.getenv("KEYSTORE_PATH") ?: "release-key.jks")
+            storePassword = System.getenv("KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("KEY_ALIAS") ?: "meluko"
+            keyPassword = System.getenv("KEY_PASSWORD")
         }
     }
 

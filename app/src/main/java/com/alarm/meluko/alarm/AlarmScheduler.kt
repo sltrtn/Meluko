@@ -77,6 +77,7 @@ class AlarmScheduler(private val context: Context) {
      * Schedule an alarm exactly [seconds] in the future (for testing).
      */
     fun scheduleIn(seconds: Int) {
+        if (!com.alarm.meluko.BuildConfig.DEBUG) return
         val triggerAtMillis = System.currentTimeMillis() + (seconds * 1000)
         
         val intent = Intent(context, AlarmReceiver::class.java).apply {

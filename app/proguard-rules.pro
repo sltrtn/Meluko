@@ -45,3 +45,14 @@
 -keep @dagger.hilt.android.AndroidEntryPoint class * { *; }
 -keep @dagger.hilt.InstallIn class * { *; }
 -keep @dagger.hilt.lifecycle.ViewModelInject class * { *; }
+
+# Release builds: drop verbose/debug/info logging (some of it includes user IDs).
+# Warnings and errors stay — Crashlytics breadcrumbs rely on them.
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+    public static int i(...);
+}
+
+# Firebase discovers its components by reflection; keep their no-arg constructors.
+-keep class * implements com.google.firebase.components.ComponentRegistrar { <init>(); }
