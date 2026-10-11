@@ -1,7 +1,7 @@
 # Handoff — Session End
 
 > **Last updated:** 2026-10-11
-> **Last action:** Firestore rules lockdown + tribe/proposal logic fixes (deployed, emulator-tested); Cloudflare plan in .ai/cloudflare-plan.md. Remaining audit items: alarm engine (see changelog 2026-10-11).
+> **Last action:** Published **v2.0 (Beta)** on GitHub (tag v2.0 @ c081750, signed release APK; Google sign-in verified on a real device with the registered release SHA-1/256). v1.0 release notes now say it is outdated. Next: v2.1 alarm engine (see changelog 2026-10-11).
 
 ---
 

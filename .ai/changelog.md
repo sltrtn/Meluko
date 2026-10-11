@@ -4,6 +4,14 @@
 
 ---
 
+## 2026-10-11 — v2.0 (Beta) released
+
+- GitHub release `v2.0` (Latest), APK `meluko-v2.0.apk`, versionCode 2. Signed with the release key; SHA-1/SHA-256 registered in Firebase and Google sign-in confirmed on a real phone.
+- Release build hardened: debug entry points stripped by R8 (verified absent from dex), Log.v/d/i stripped, Firebase registrars kept, signing secrets from env vars only.
+- v1.0 marked outdated (incompatible with the new Firestore rules).
+
+---
+
 ## 2026-10-11 — Rules Lockdown + Tribe/Proposal Logic Fixes
 
 Driven by a 3-part logic audit (tribe/admin, proposal/veto, alarm/streak).
