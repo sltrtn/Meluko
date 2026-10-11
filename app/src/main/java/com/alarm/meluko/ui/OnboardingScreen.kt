@@ -175,7 +175,7 @@ fun OnboardingScreen(onFinish: () -> Unit) {
                         .height(64.dp)
                         .padding(bottom = 16.dp)
                         .pressScale(),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = MaterialTheme.shapes.large,
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
                     Text(

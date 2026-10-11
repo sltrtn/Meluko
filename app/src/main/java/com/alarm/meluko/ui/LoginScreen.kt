@@ -19,7 +19,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.ui.graphics.graphicsLayer
 import com.alarm.meluko.BuildConfig
+import com.alarm.meluko.ui.components.aurora
+import com.alarm.meluko.ui.theme.DefaultFontFamily
+import com.alarm.meluko.ui.theme.MelukoTheme
 import com.alarm.meluko.auth.AuthState
 import com.alarm.meluko.auth.AuthViewModel
 
@@ -37,14 +45,8 @@ fun LoginScreen(authViewModel: AuthViewModel) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.background,
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                    )
-                )
-            ),
+            .background(MaterialTheme.colorScheme.background)
+            .aurora(),
         contentAlignment = Alignment.Center
     ) {
         AnimatedVisibility(
@@ -61,26 +63,29 @@ fun LoginScreen(authViewModel: AuthViewModel) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
-                // ── Logo ────────────────────────────────────────────────────
-                Box(
-                    modifier = Modifier
-                        .size(100.dp)
-                        .clip(RoundedCornerShape(36.dp))
-                        .background(
-                            brush = Brush.linearGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.primary,
-                                    MaterialTheme.colorScheme.tertiary
-                                )
+                // ── Logo: an expressive sun, slowly turning ─────────────────
+                val spin by rememberInfiniteTransition(label = "logo").animateFloat(
+                    initialValue = 0f,
+                    targetValue = 360f,
+                    animationSpec = infiniteRepeatable(tween(24_000, easing = LinearEasing)),
+                    label = "logoSpin"
+                )
+                Box(contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier
+                            .size(120.dp)
+                            .graphicsLayer { rotationZ = spin }
+                            .background(
+                                brush = Brush.linearGradient(MelukoTheme.colors.sunrise.reversed()),
+                                shape = MaterialShapes.Sunny.toShape()
                             )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
+                    )
                     Text(
                         text = "M",
                         fontSize = 52.sp,
                         fontWeight = FontWeight.Black,
-                        color = Color.White
+                        fontFamily = DefaultFontFamily,
+                        color = Color(0xFF2A1100)
                     )
                 }
 
@@ -106,7 +111,7 @@ fun LoginScreen(authViewModel: AuthViewModel) {
                 // ── Login Card ───────────────────────────────────────────────
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = MaterialTheme.shapes.large,
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                     ),
@@ -139,18 +144,18 @@ fun LoginScreen(authViewModel: AuthViewModel) {
                                 .fillMaxWidth()
                                 .height(64.dp)
                                 .pressScale(),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = MaterialTheme.shapes.large,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                disabledContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
                             )
                         ) {
                             if (isLoading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    color = Color.White,
-                                    strokeWidth = 2.dp
-                                )
+                                LoadingIndicator(
+                            modifier = Modifier.size(36.dp),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
                             } else {
                                 Text(
                                     text = "Continue with Google",
@@ -179,7 +184,7 @@ fun LoginScreen(authViewModel: AuthViewModel) {
                         if (errorMsg != null && !isLoading) {
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp),
+                                shape = MaterialTheme.shapes.large,
                                 colors = CardDefaults.cardColors(
                                     containerColor = MaterialTheme.colorScheme.errorContainer
                                 )

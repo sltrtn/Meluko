@@ -5,21 +5,30 @@ import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.Alarm
-import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.PersonRemove
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ExitToApp
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Alarm
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.DeleteForever
+import androidx.compose.material.icons.rounded.HowToVote
+import androidx.compose.material.icons.rounded.PersonAdd
+import androidx.compose.material.icons.rounded.PersonRemove
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -28,8 +37,19 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.alarm.meluko.data.FirestoreCollection
 import com.alarm.meluko.data.FirestoreField
+import com.alarm.meluko.ui.components.Hairline
+import com.alarm.meluko.ui.components.MelukoCard
+import com.alarm.meluko.ui.components.MelukoLoading
+import com.alarm.meluko.ui.components.SectionHeader
+import com.alarm.meluko.ui.components.aurora
+import com.alarm.meluko.ui.components.glass
+import com.alarm.meluko.ui.components.plural
+import com.alarm.meluko.ui.components.staggeredEnter
 import com.alarm.meluko.ui.theme.DefaultFontFamily
 import com.alarm.meluko.ui.theme.BodyFontFamily
+import com.alarm.meluko.ui.theme.MelukoTheme
+import com.alarm.meluko.util.to12HourDisplay
+import com.alarm.meluko.util.to12HourParts
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
@@ -212,6 +232,7 @@ fun TribeDetailScreen(
         ProposeAlarmBottomSheet(
             tribeId = tribeId,
             proposalViewModel = proposalViewModel,
+            initialTime = tribeAlarmTime,
             onDismiss = { showProposeSheet = false }
         )
     }
@@ -234,26 +255,43 @@ fun TribeDetailScreen(
         }
     }
 
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    var codeCopied by remember { mutableStateOf(false) }
+    LaunchedEffect(codeCopied) {
+        if (codeCopied) {
+            snackbarHostState.showSnackbar("Invite code copied")
+            codeCopied = false
+        }
+    }
+    val shareInvite = {
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(
+                Intent.EXTRA_TEXT,
+                "Wake up with me on Meluko! Join \"$tribeName\" with invite code $tribeInviteCode"
+            )
+        }
+        context.startActivity(Intent.createChooser(shareIntent, "Share invite code"))
+    }
+
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .aurora(),
+        containerColor = Color.Transparent,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         contentWindowInsets = WindowInsets.systemBars,
         floatingActionButton = {
-            // Show propose FAB only when there is no active pending proposal
-            if (!hasActiveProposal) {
+            if (!hasActiveProposal && tribeLoaded) {
                 ExtendedFloatingActionButton(
                     onClick = { showProposeSheet = true },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    icon = { Icon(Icons.Filled.Alarm, "Propose") },
-                    text = {
-                        Text(
-                            "PROPOSE ALARM",
-                            fontWeight = FontWeight.Black,
-                            fontFamily = DefaultFontFamily
-                        )
-                    }
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    shape = MaterialTheme.shapes.large,
+                    icon = { Icon(Icons.Rounded.Alarm, null) },
+                    text = { Text("Propose alarm", fontWeight = FontWeight.ExtraBold, fontFamily = DefaultFontFamily) },
+                    modifier = Modifier.fabPressScale()
                 )
             }
         }
@@ -263,7 +301,8 @@ fun TribeDetailScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(paddingValues),
+                        .padding(paddingValues)
+                        .padding(32.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -274,13 +313,11 @@ fun TribeDetailScreen(
                             color = MaterialTheme.colorScheme.error
                         )
                         Spacer(Modifier.height(12.dp))
-                        Button(onClick = { /* retry would re-trigger listener */ }) {
-                            Text("Retry", fontFamily = DefaultFontFamily)
-                        }
+                        Button(onClick = onBack) { Text("Go back", fontFamily = DefaultFontFamily) }
                     }
                 }
             } else {
-                TribeDetailShimmer(modifier = Modifier.padding(paddingValues))
+                MelukoLoading(Modifier.padding(paddingValues))
             }
             return@Scaffold
         }
@@ -290,98 +327,147 @@ fun TribeDetailScreen(
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Top Bar
-            TopAppBar(
-                title = {
-                    Text(
-                        text = tribeName.ifBlank { "Tribe" },
-                        fontWeight = FontWeight.Black,
-                        fontFamily = DefaultFontFamily,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.primary
+            // ── Top bar: glass round buttons over the aurora ───────────────────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                GlassIconButton(Icons.AutoMirrored.Rounded.ArrowBack, "Back", onBack)
+                Spacer(Modifier.weight(1f))
+                if (tribeInviteCode.isNotBlank()) {
+                    GlassIconButton(Icons.Rounded.Share, "Share invite code") { shareInvite() }
+                }
+            }
+
+            // ── Identity ──────────────────────────────────────────────────────
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .staggeredEnter(0),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                TribeAvatar(photoUrl = null, name = tribeName.ifBlank { "Tribe" }, size = 88.dp)
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    text = tribeName.ifBlank { "Tribe" },
+                    fontSize = 30.sp,
+                    lineHeight = 34.sp,
+                    fontWeight = FontWeight.Black,
+                    fontFamily = DefaultFontFamily,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = plural(tribeMemberCount, "member"),
+                    fontSize = 14.sp,
+                    fontFamily = BodyFontFamily,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(Modifier.height(22.dp))
+
+            // ── Alarm + invite ────────────────────────────────────────────────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .height(IntrinsicSize.Min)
+                    .staggeredEnter(1),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                val (alarmClock, alarmAmPm) = to12HourParts(tribeAlarmTime)
+                Box(
+                    Modifier
+                        .weight(1.2f)
+                        .fillMaxHeight()
+                        .clip(MaterialTheme.shapes.large)
+                        .background(Brush.linearGradient(MelukoTheme.colors.sunrise.reversed()))
+                        .padding(18.dp)
+                ) {
+                    Column {
+                        Text(
+                            "TRIBE ALARM",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontFamily = DefaultFontFamily,
+                            letterSpacing = 1.6.sp,
+                            color = Color(0xFF2A1100).copy(alpha = 0.7f)
                         )
-                    }
-                },
-                actions = {
-                    if (tribeInviteCode.isNotBlank()) {
-                        IconButton(onClick = {
-                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(
-                                    Intent.EXTRA_TEXT,
-                                    "Join my tribe \"$tribeName\" on Meluko! Use invite code: $tribeInviteCode"
-                                )
-                            }
-                            context.startActivity(Intent.createChooser(shareIntent, "Share invite code"))
-                        }) {
-                            Icon(
-                                imageVector = Icons.Filled.Share,
-                                contentDescription = "Share invite code",
-                                tint = MaterialTheme.colorScheme.primary
+                        Spacer(Modifier.height(4.dp))
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(
+                                alarmClock,
+                                fontSize = 36.sp,
+                                lineHeight = 38.sp,
+                                fontWeight = FontWeight.Black,
+                                fontFamily = DefaultFontFamily,
+                                color = Color(0xFF2A1100)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                alarmAmPm,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Black,
+                                fontFamily = DefaultFontFamily,
+                                color = Color(0xFF2A1100).copy(alpha = 0.8f),
+                                modifier = Modifier.padding(bottom = 6.dp)
                             )
                         }
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
-
-            // Hero Alarm Card
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 10.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer
-                ),
-                elevation = CardDefaults.cardElevation(0.dp)
-            ) {
-                Column(modifier = Modifier.padding(24.dp)) {
-                    Text(
-                        text = "$tribeMemberCount Members",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = DefaultFontFamily,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = "Alarm: $tribeAlarmTime",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Black,
-                        fontFamily = DefaultFontFamily,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                    if (tribeInviteCode.isNotBlank()) {
-                        Spacer(Modifier.height(12.dp))
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.12f)
-                        ) {
+                }
+                if (tribeInviteCode.isNotBlank()) {
+                    MelukoCard(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                        onClick = {
+                            clipboard.setText(androidx.compose.ui.text.AnnotatedString(tribeInviteCode))
+                            codeCopied = true
+                        }
+                    ) {
+                        Column(Modifier.padding(18.dp)) {
                             Text(
-                                text = "INVITE CODE  ·  $tribeInviteCode",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
+                                "INVITE CODE",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
                                 fontFamily = DefaultFontFamily,
-                                letterSpacing = 1.sp,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                                letterSpacing = 1.6.sp,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
                             )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                tribeInviteCode,
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Black,
+                                fontFamily = DefaultFontFamily,
+                                letterSpacing = 2.sp,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Rounded.ContentCopy, null,
+                                    tint = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    "Tap to copy",
+                                    fontSize = 12.sp,
+                                    fontFamily = BodyFontFamily,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            // Active Proposal Card (real data)
+            // ── Active proposal ───────────────────────────────────────────────
             AnimatedVisibility(
                 visible = hasActiveProposal && activeProposal != null,
                 enter = scaleIn(animationSpec = MotionSpec.cardEnter, initialScale = 0.9f) +
@@ -397,237 +483,139 @@ fun TribeDetailScreen(
                         vetoesLeft = 2 - vetoesUsed,
                         vetoCount = proposal.vetoCount,
                         onVetoClick = { showVetoSheet = true },
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp)
                     )
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(28.dp))
 
-            // Tribe Leaderboard
-            Text(
-                text = "${tribeName.ifBlank { "Tribe" }} Leaderboard",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = DefaultFontFamily,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                letterSpacing = 0.5.sp,
-                modifier = Modifier.padding(horizontal = 20.dp)
-            )
+            // ── Leaderboard ───────────────────────────────────────────────────
+            SectionHeader("Leaderboard", Modifier.padding(horizontal = 24.dp))
             Spacer(Modifier.height(10.dp))
-
             if (members.isEmpty()) {
-                Text(
-                    text = "No members yet. Invite your friends!",
-                    fontSize = 13.sp,
-                    fontFamily = BodyFontFamily,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 20.dp)
-                )
+                EmptyHint("No members yet. Share the invite code!", Modifier.padding(horizontal = 20.dp))
             } else {
-                members.forEachIndexed { index, member ->
-                    TribeDetailLeaderboardRow(
-                        rank = index + 1,
-                        name = member.name,
-                        photoUrl = member.photoUrl,
-                        streak = member.streakDays,
-                        isYou = member.isYou,
-                        canRemove = isAdmin && !member.isYou,
-                        onRemoveClick = { memberPendingRemoval = member },
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(24.dp))
-
-            // ── Manage Tribe ──────────────────────────────────────────────────
-            Text(
-                text = "Manage Tribe",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = DefaultFontFamily,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                letterSpacing = 0.5.sp,
-                modifier = Modifier.padding(horizontal = 20.dp)
-            )
-            Spacer(Modifier.height(10.dp))
-            Surface(
-                modifier = Modifier
-                    .padding(horizontal = 20.dp)
-                    .fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.errorContainer
-            ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    if (isAdmin && tribeMemberCount <= 1) {
-                        TribeDangerRow(
-                            icon = Icons.Filled.DeleteForever,
-                            label = "Delete Tribe",
-                            enabled = !isTribeActionInProgress,
-                            onClick = { showDeleteConfirm = true }
-                        )
-                    } else {
-                        TribeDangerRow(
-                            icon = Icons.AutoMirrored.Filled.ExitToApp,
-                            label = "Leave Tribe",
-                            enabled = !isTribeActionInProgress,
-                            onClick = { showLeaveConfirm = true }
+                Column(
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    members.forEachIndexed { index, member ->
+                        LeaderboardRow(
+                            rank = index + 1,
+                            member = member,
+                            modifier = Modifier.staggeredEnter(2 + index),
+                            trailing = if (isAdmin && !member.isYou) {
+                                {
+                                    IconButton(onClick = { memberPendingRemoval = member }) {
+                                        Icon(
+                                            Icons.Rounded.PersonRemove,
+                                            contentDescription = "Remove ${member.name}",
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                }
+                            } else null
                         )
                     }
                 }
             }
 
-            Spacer(Modifier.height(100.dp))
+            Spacer(Modifier.height(28.dp))
+
+            // ── Manage ────────────────────────────────────────────────────────
+            SectionHeader("Manage", Modifier.padding(horizontal = 24.dp))
+            Spacer(Modifier.height(10.dp))
+            MelukoCard(
+                modifier = Modifier
+                    .padding(horizontal = 20.dp)
+                    .fillMaxWidth()
+            ) {
+                if (tribeInviteCode.isNotBlank()) {
+                    TribeActionRow(
+                        icon = Icons.Rounded.PersonAdd,
+                        label = "Invite friends",
+                        enabled = true,
+                        onClick = { shareInvite() }
+                    )
+                    Hairline(Modifier.padding(horizontal = 16.dp))
+                }
+                if (isAdmin && tribeMemberCount <= 1) {
+                    TribeActionRow(
+                        icon = Icons.Rounded.DeleteForever,
+                        label = "Delete tribe",
+                        destructive = true,
+                        enabled = !isTribeActionInProgress,
+                        onClick = { showDeleteConfirm = true }
+                    )
+                } else {
+                    TribeActionRow(
+                        icon = Icons.AutoMirrored.Rounded.ExitToApp,
+                        label = "Leave tribe",
+                        destructive = true,
+                        enabled = !isTribeActionInProgress,
+                        onClick = { showLeaveConfirm = true }
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(120.dp))
         }
     }
 }
 
 @Composable
-private fun TribeDangerRow(
+private fun GlassIconButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    description: String,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .glass(CircleShape, hazeState = null)
+            .clickable(onClick = onClick)
+            .pressScale(),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = description, tint = MaterialTheme.colorScheme.onSurface)
+    }
+}
+
+@Composable
+private fun TribeActionRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     enabled: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    destructive: Boolean = false,
 ) {
+    val tint = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
     Surface(
-        modifier = Modifier.fillMaxWidth().pressScale(),
-        color = androidx.compose.ui.graphics.Color.Transparent,
+        modifier = Modifier.fillMaxWidth(),
+        color = Color.Transparent,
         onClick = onClick,
         enabled = enabled
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = MaterialTheme.colorScheme.onErrorContainer,
-                modifier = Modifier.size(20.dp)
-            )
+            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
             Text(
                 text = label,
-                fontSize = 14.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = DefaultFontFamily,
-                color = MaterialTheme.colorScheme.onErrorContainer
+                color = tint,
+                modifier = Modifier.weight(1f)
+            )
+            Icon(
+                Icons.AutoMirrored.Rounded.KeyboardArrowRight, null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
             )
         }
-    }
-}
-
-@Composable
-private fun TribeDetailLeaderboardRow(
-    rank: Int,
-    name: String,
-    photoUrl: String?,
-    streak: Int,
-    isYou: Boolean,
-    canRemove: Boolean = false,
-    onRemoveClick: () -> Unit = {},
-    modifier: Modifier = Modifier
-) {
-    val medal = when (rank) { 1 -> "1st"; 2 -> "2nd"; 3 -> "3rd"; else -> null }
-
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        color = if (isYou) MaterialTheme.colorScheme.primaryContainer
-                else MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 0.dp
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Box(
-                modifier = Modifier.width(28.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                if (medal != null) Text(medal, fontSize = 20.sp)
-                else Text(
-                    "$rank",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = DefaultFontFamily
-                )
-            }
-            UserAvatar(photoUrl = photoUrl, name = name, size = 38.dp)
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = if (isYou) "$name (You)" else name,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = DefaultFontFamily,
-                    color = if (isYou) MaterialTheme.colorScheme.onPrimaryContainer
-                            else MaterialTheme.colorScheme.onSurface
-                )
-            }
-            Text(
-                text = "${streak}d",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Black,
-                fontFamily = DefaultFontFamily,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            if (canRemove) {
-                IconButton(onClick = onRemoveClick, modifier = Modifier.size(28.dp)) {
-                    Icon(
-                        imageVector = Icons.Filled.PersonRemove,
-                        contentDescription = "Remove $name",
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  Shimmer skeleton
-// ─────────────────────────────────────────────────────────────────────────────
-@Composable
-private fun TribeDetailShimmer(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-    ) {
-        Spacer(Modifier.height(12.dp))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            ShimmerCircle(size = 24.dp)
-            Spacer(Modifier.width(8.dp))
-            ShimmerLine(width = 120.dp, height = 18.dp)
-        }
-        Spacer(Modifier.height(16.dp))
-        ShimmerCard(
-            modifier = Modifier.padding(horizontal = 20.dp),
-            height = 120.dp
-        )
-        Spacer(Modifier.height(24.dp))
-        ShimmerLine(
-            width = 140.dp,
-            height = 14.dp,
-            modifier = Modifier.padding(horizontal = 20.dp)
-        )
-        Spacer(Modifier.height(12.dp))
-        repeat(5) {
-            ShimmerLeaderboardRow(modifier = Modifier.padding(horizontal = 20.dp))
-        }
-        Spacer(Modifier.height(100.dp))
     }
 }
 
@@ -643,99 +631,98 @@ private fun ProposalCard(
     onVetoClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    val onCard = MaterialTheme.colorScheme.onTertiaryContainer
+    MelukoCard(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.8f),
-        contentColor = MaterialTheme.colorScheme.onErrorContainer
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        shape = MaterialTheme.shapes.extraLarge
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+        Column(Modifier.padding(20.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.HowToVote, null, tint = onCard, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
                 Text(
-                    text = "Active Proposal",
+                    "PROPOSAL",
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.ExtraBold,
                     fontFamily = DefaultFontFamily,
-                    color = MaterialTheme.colorScheme.error
+                    letterSpacing = 1.6.sp,
+                    color = onCard.copy(alpha = 0.8f),
+                    modifier = Modifier.weight(1f)
                 )
                 if (countdownText.isNotBlank()) {
-                    Text(
-                        text = countdownText,
-                        fontSize = 10.sp,
-                        fontFamily = BodyFontFamily,
-                        color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
-                    )
-                }
-            }
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text = "$proposerName wants to move the alarm to $proposedTime",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = DefaultFontFamily
-            )
-            if (vetoCount > 0) {
-                Text(
-                    text = "$vetoCount veto${if (vetoCount == 1) "" else "es"} cast so far.",
-                    fontSize = 11.sp,
-                    fontFamily = BodyFontFamily,
-                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f),
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-            }
-            Text(
-                text = "If nobody vetos within the window, this will be accepted automatically.",
-                fontSize = 11.sp,
-                fontFamily = BodyFontFamily,
-                color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f),
-                modifier = Modifier.padding(top = 4.dp)
-            )
-
-            Spacer(Modifier.height(16.dp))
-
-            when {
-                alreadyVetoed -> {
-                    Text(
-                        text = "You already vetoed this proposal.",
-                        fontSize = 12.sp,
-                        fontFamily = BodyFontFamily,
-                        color = MaterialTheme.colorScheme.error,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-                canVeto -> {
-                    Button(
-                        onClick = onVetoClick,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error,
-                            contentColor = MaterialTheme.colorScheme.onError
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
+                    Surface(shape = CircleShape, color = onCard.copy(alpha = 0.12f)) {
                         Text(
-                            text = "VETO  ($vetoesLeft veto${if (vetoesLeft == 1) "" else "s"} remaining)",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Black,
-                            fontFamily = DefaultFontFamily
+                            countdownText,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = BodyFontFamily,
+                            color = onCard,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                         )
                     }
                 }
-                else -> {
+            }
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = "$proposerName wants to move the alarm to",
+                fontSize = 15.sp,
+                fontFamily = BodyFontFamily,
+                color = onCard
+            )
+            Text(
+                text = to12HourDisplay(proposedTime),
+                fontSize = 40.sp,
+                lineHeight = 44.sp,
+                fontWeight = FontWeight.Black,
+                fontFamily = DefaultFontFamily,
+                color = onCard
+            )
+            Text(
+                text = if (vetoCount > 0) "${plural(vetoCount, "veto", "vetoes")} so far. It still passes unless someone vetoes in time."
+                else "It passes automatically unless someone vetoes in time.",
+                fontSize = 13.sp,
+                lineHeight = 17.sp,
+                fontFamily = BodyFontFamily,
+                color = onCard.copy(alpha = 0.75f)
+            )
+            Spacer(Modifier.height(16.dp))
+            when {
+                alreadyVetoed -> Text(
+                    "You vetoed this one.",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = DefaultFontFamily,
+                    color = onCard,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                canVeto -> Button(
+                    onClick = onVetoClick,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .pressScale(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    ),
+                    shape = MaterialTheme.shapes.large
+                ) {
                     Text(
-                        text = "You have no vetos remaining.",
-                        fontSize = 12.sp,
-                        fontFamily = BodyFontFamily,
-                        color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.6f),
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
+                        "Veto · $vetoesLeft left",
+                        fontWeight = FontWeight.ExtraBold,
+                        fontFamily = DefaultFontFamily
                     )
                 }
+                else -> Text(
+                    "You're out of vetoes.",
+                    fontSize = 14.sp,
+                    fontFamily = BodyFontFamily,
+                    color = onCard.copy(alpha = 0.7f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
     }

@@ -1,7 +1,7 @@
 # Handoff — Session End
 
 > **Last updated:** 2026-10-11
-> **Last action:** Alarm screen + swipe-to-wake + tone picker overhaul; fixed Home stats-always-0 bug (see changelog 2026-10-11)
+> **Last action:** Expressive UI revamp (fixed brand palette, M3 Expressive shapes/loaders, sparing glass) + wheel-offset and sign-out bug fixes (see changelog 2026-10-11)
 
 ---
 

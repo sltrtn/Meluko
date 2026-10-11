@@ -34,4 +34,17 @@ class TimeUtilsTest {
     fun `11 AM stays 11`() {
         assertEquals("11:59", to24HourTime("11", "59", "AM"))
     }
+
+    @Test
+    fun `12h display covers midnight noon and evening`() {
+        assertEquals("12:00 AM", to12HourDisplay("00:00"))
+        assertEquals("7:30 AM", to12HourDisplay("07:30"))
+        assertEquals("12:15 PM", to12HourDisplay("12:15"))
+        assertEquals("7:05 PM", to12HourDisplay("19:05"))
+    }
+
+    @Test
+    fun `12h display passes through unparseable input`() {
+        assertEquals("--:--", to12HourDisplay("--:--"))
+    }
 }

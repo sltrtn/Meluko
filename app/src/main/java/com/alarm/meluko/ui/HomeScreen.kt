@@ -1,35 +1,5 @@
 package com.alarm.meluko.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.scaleIn
-import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.WbSunny
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -40,16 +10,65 @@ import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Alarm
+import androidx.compose.material.icons.rounded.BatterySaver
+import androidx.compose.material.icons.rounded.BugReport
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.CloudOff
+import androidx.compose.material.icons.rounded.EmojiEvents
+import androidx.compose.material.icons.rounded.LocalFireDepartment
+import androidx.compose.material.icons.rounded.WbSunny
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.alarm.meluko.BuildConfig
 import com.alarm.meluko.alarm.AlarmScheduler
+import com.alarm.meluko.ui.components.MelukoCard
+import com.alarm.meluko.ui.components.MelukoLoading
+import com.alarm.meluko.ui.components.SectionHeader
+import com.alarm.meluko.ui.components.StatTile
+import com.alarm.meluko.ui.components.plural
+import com.alarm.meluko.ui.components.staggeredEnter
 import com.alarm.meluko.ui.theme.BodyFontFamily
 import com.alarm.meluko.ui.theme.DefaultFontFamily
 import com.alarm.meluko.ui.theme.MelukoTheme
+import com.alarm.meluko.util.to12HourParts
 import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
 import java.util.*
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -76,13 +95,12 @@ fun HomeScreen(
     val nextAlarmTime by homeViewModel.nextAlarmTime.collectAsState()
     val primaryTribeId by homeViewModel.primaryTribeId.collectAsState()
     val streakDays by homeViewModel.streakDays.collectAsState()
+    val bestStreak by homeViewModel.bestStreak.collectAsState()
     val totalWakes by homeViewModel.totalWakes.collectAsState()
     val rank by homeViewModel.rank.collectAsState()
-    val tribesProgress by socialViewModel.tribes.collectAsState()
-
-    val activeTribes = tribesProgress.map {
-        TribeInfo(it.id, it.name, it.photoUrl, it.totalCount)
-    }
+    val lastWakeDate by homeViewModel.lastWakeDate.collectAsState()
+    val todayStatus by homeViewModel.todayStatus.collectAsState()
+    val tribes by socialViewModel.tribes.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val proposalError by proposalViewModel.error.collectAsState()
@@ -95,7 +113,6 @@ fun HomeScreen(
             proposalViewModel.clearError()
         }
     }
-
     LaunchedEffect(homeError) {
         homeError?.let {
             snackbarHostState.showSnackbar(it)
@@ -104,26 +121,29 @@ fun HomeScreen(
     }
 
     var showProposeSheet by remember { mutableStateOf(false) }
-
     if (showProposeSheet && primaryTribeId != null) {
         ProposeAlarmBottomSheet(
             tribeId = primaryTribeId!!,
             proposalViewModel = proposalViewModel,
+            initialTime = nextAlarmTime,
             onDismiss = { showProposeSheet = false }
         )
     }
 
     HomeScreenContent(
-        isLoading      = isLoading,
-        isOnline       = isOnline,
+        isLoading = isLoading,
+        isOnline = isOnline,
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        nextAlarmTime  = nextAlarmTime,
-        hasTribe       = primaryTribeId != null,
-        activeTribes   = activeTribes,
-        streakDays     = streakDays,
-        totalWakes     = totalWakes,
-        rank           = rank,
-        onTribeClick   = onTribeClick,
+        nextAlarmTime = nextAlarmTime,
+        hasTribe = primaryTribeId != null,
+        tribe = tribes.firstOrNull(),
+        streakDays = streakDays,
+        bestStreak = bestStreak,
+        totalWakes = totalWakes,
+        rank = rank,
+        lastWakeDate = lastWakeDate,
+        todayStatus = todayStatus,
+        onTribeClick = onTribeClick,
         onProposeClick = { showProposeSheet = true }
     )
 }
@@ -133,25 +153,28 @@ fun HomeScreen(
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 fun HomeScreenContent(
-    isLoading:      Boolean = false,
-    isOnline:       Boolean = true,
-    nextAlarmTime:  String,
-    hasTribe:       Boolean,
-    activeTribes:   List<TribeInfo>,
-    snackbarHost:   @Composable () -> Unit = {},
-    streakDays:     Int = 0,
-    totalWakes:     Int = 0,
-    rank:           Int = 1,
-    onTribeClick:   (String) -> Unit,
+    isLoading: Boolean = false,
+    isOnline: Boolean = true,
+    nextAlarmTime: String,
+    hasTribe: Boolean,
+    tribe: TribeProgress?,
+    snackbarHost: @Composable () -> Unit = {},
+    streakDays: Int = 0,
+    bestStreak: Int = 0,
+    totalWakes: Int = 0,
+    rank: Int = 1,
+    lastWakeDate: String? = null,
+    todayStatus: WakeStatus = WakeStatus.Sleeping,
+    onTribeClick: (String) -> Unit,
     onProposeClick: () -> Unit
 ) {
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
         snackbarHost = snackbarHost,
         contentWindowInsets = WindowInsets.systemBars
     ) { padding ->
         if (isLoading) {
-            HomeShimmer(modifier = Modifier.padding(padding))
+            MelukoLoading(Modifier.padding(padding))
             return@Scaffold
         }
         Column(
@@ -160,217 +183,222 @@ fun HomeScreenContent(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
         ) {
-            // ── Top Bar ───────────────────────────────────────────────────────
-            ScreenHeader("MELUKO")
+            ScreenHeader(title = "Meluko")
 
-            // ── Offline banner ────────────────────────────────────────────────
-            AnimatedVisibility(visible = !isOnline) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 8.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
-                ) {
-                    Text(
-                        text = "You're offline — showing cached data",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
+            HomeNotices(isOnline = isOnline)
 
-            val context = LocalContext.current
-
-            // Request notification permission for Android 13+ (API 33+)
-            val permissionLauncher = rememberLauncherForActivityResult(
-                contract = ActivityResultContracts.RequestPermission(),
-                onResult = { }
-            )
-
-            var exactAlarmGranted by remember {
-                mutableStateOf(AlarmScheduler(context).canScheduleExactAlarms())
-            }
-
-            LaunchedEffect(Unit) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    val granted = ContextCompat.checkSelfPermission(
-                        context, Manifest.permission.POST_NOTIFICATIONS
-                    ) == PackageManager.PERMISSION_GRANTED
-                    if (!granted) {
-                        permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    }
-                }
-            }
-
-            // ── Exact-alarm permission banner (Android 12+) ────────────────────
-            if (!exactAlarmGranted) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 8.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "Exact alarms are disabled — your alarm may be delayed.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        TextButton(
-                            onClick = {
-                                AlarmScheduler(context).openExactAlarmSettings()
-                            }
-                        ) {
-                            Text(
-                                text = "OPEN SETTINGS",
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Re-check permission when the user returns from settings
-            LaunchedEffect(Unit) {
-                while (true) {
-                    delay(1_000L)
-                    exactAlarmGranted = AlarmScheduler(context).canScheduleExactAlarms()
-                }
-            }
-
-            // ── Battery optimization banner ─────────────────────────────────────
-            // OEMs (Xiaomi, Samsung, OnePlus, etc.) kill background alarms unless
-            // the app is whitelisted from battery optimization. Dismissible —
-            // unlike exact-alarm permission, this is a recommendation, not a hard
-            // requirement, so we respect "not now".
-            val prefs = remember { context.getSharedPreferences("meluko_prefs", Context.MODE_PRIVATE) }
-            var batteryBannerDismissed by remember {
-                mutableStateOf(prefs.getBoolean("battery_banner_dismissed", false))
-            }
-            var batteryOptIgnored by remember { mutableStateOf(isIgnoringBatteryOptimizations(context)) }
-
-            LaunchedEffect(Unit) {
-                while (true) {
-                    delay(1_000L)
-                    batteryOptIgnored = isIgnoringBatteryOptimizations(context)
-                }
-            }
-
-            if (!batteryOptIgnored && !batteryBannerDismissed) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 8.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "Battery optimization may delay your alarm. Whitelist Meluko for reliable wake-ups.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Row {
-                            TextButton(onClick = {
-                                batteryBannerDismissed = true
-                                prefs.edit().putBoolean("battery_banner_dismissed", true).apply()
-                            }) {
-                                Text(
-                                    text = "NOT NOW",
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                            Spacer(Modifier.width(8.dp))
-                            TextButton(onClick = {
-                                val intent = Intent(
-                                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                                    Uri.parse("package:${context.packageName}")
-                                )
-                                context.startActivity(intent)
-                            }) {
-                                Text(
-                                    text = "ALLOW",
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // ── Hero alarm card ───────────────────────────────────────────────
             AlarmHeroCard(
-                nextAlarmTime  = nextAlarmTime,
-                hasTribe       = hasTribe,
+                nextAlarmTime = nextAlarmTime,
+                hasTribe = hasTribe,
                 onProposeClick = onProposeClick,
-                modifier       = Modifier.padding(horizontal = 20.dp)
-            )
-            
-            Spacer(Modifier.height(20.dp))
-
-            // ── Active tribes ─────────────────────────────────────────────────
-            ActiveTribesSection(
-                tribes   = activeTribes,
-                onTribeClick = onTribeClick,
-                modifier = Modifier.padding(horizontal = 20.dp)
+                modifier = Modifier
+                    .padding(horizontal = 20.dp)
+                    .staggeredEnter(0)
             )
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(28.dp))
 
-            // ── Stats ─────────────────────────────────────────────────────────
-            StatsRow(
+            SectionHeader("Your tribe", Modifier.padding(horizontal = 24.dp))
+            Spacer(Modifier.height(10.dp))
+            TribeSummaryCard(
+                tribe = tribe,
+                onClick = { tribe?.let { onTribeClick(it.id) } },
+                modifier = Modifier
+                    .padding(horizontal = 20.dp)
+                    .staggeredEnter(1)
+            )
+
+            Spacer(Modifier.height(28.dp))
+
+            SectionHeader("Your stats", Modifier.padding(horizontal = 24.dp))
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .staggeredEnter(2),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                StatTile(
+                    icon = Icons.Rounded.LocalFireDepartment,
+                    polygon = MaterialShapes.Sunny,
+                    value = streakDays,
+                    label = "Day streak",
+                    container = MaterialTheme.colorScheme.primaryContainer,
+                    content = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier
+                        .weight(1f)
+                        .celebrateBurst(rememberIncreaseTrigger(streakDays))
+                )
+                StatTile(
+                    icon = Icons.Rounded.WbSunny,
+                    polygon = MaterialShapes.Cookie9Sided,
+                    value = totalWakes,
+                    label = "Wake-ups",
+                    container = MaterialTheme.colorScheme.secondaryContainer,
+                    content = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.weight(1f)
+                )
+                StatTile(
+                    icon = Icons.Rounded.EmojiEvents,
+                    polygon = MaterialShapes.SoftBurst,
+                    value = rank,
+                    prefix = "#",
+                    label = "Tribe rank",
+                    container = MaterialTheme.colorScheme.tertiaryContainer,
+                    content = MaterialTheme.colorScheme.onTertiaryContainer,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(Modifier.height(28.dp))
+
+            SectionHeader("This week", Modifier.padding(horizontal = 24.dp))
+            Spacer(Modifier.height(10.dp))
+            WeekCard(
                 streakDays = streakDays,
-                totalWakes = totalWakes,
-                rank       = rank,
-                modifier   = Modifier.padding(horizontal = 20.dp)
+                bestStreak = bestStreak,
+                lastWakeDate = lastWakeDate,
+                todayStatus = todayStatus,
+                modifier = Modifier
+                    .padding(horizontal = 20.dp)
+                    .staggeredEnter(3)
             )
 
-            Spacer(Modifier.height(20.dp))
-
-            // ── Consistency ─────────────────────────────────────────────────────
-            ConsistencyCard(
-                streakDays = streakDays,
-                totalWakes = totalWakes,
-                modifier   = Modifier.padding(horizontal = 20.dp)
-            )
-
-            // Extra padding for glass nav bar
-            Spacer(Modifier.height(120.dp))
+            // Clearance for the floating glass nav bar
+            Spacer(Modifier.height(128.dp))
         }
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Hero Alarm Card
+//  Notices: offline, exact-alarm permission, battery optimisation
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun HomeNotices(isOnline: Boolean) {
+    val context = LocalContext.current
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { }
+    )
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val granted = ContextCompat.checkSelfPermission(
+                context, Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+            if (!granted) permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    var exactAlarmGranted by remember { mutableStateOf(AlarmScheduler(context).canScheduleExactAlarms()) }
+    val prefs = remember { context.getSharedPreferences("meluko_prefs", Context.MODE_PRIVATE) }
+    var batteryBannerDismissed by remember { mutableStateOf(prefs.getBoolean("battery_banner_dismissed", false)) }
+    var batteryOptIgnored by remember { mutableStateOf(isIgnoringBatteryOptimizations(context)) }
+
+    // Re-check when the user returns from system settings
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(1_000L)
+            exactAlarmGranted = AlarmScheduler(context).canScheduleExactAlarms()
+            batteryOptIgnored = isIgnoringBatteryOptimizations(context)
+        }
+    }
+
+    Column(
+        modifier = Modifier.padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        NoticeCard(
+            visible = !isOnline,
+            icon = Icons.Rounded.CloudOff,
+            text = "You're offline. Showing your last synced data.",
+        )
+        NoticeCard(
+            visible = !exactAlarmGranted,
+            icon = Icons.Rounded.Alarm,
+            text = "Exact alarms are off, so your alarm could ring late.",
+            emphasis = true,
+            actionLabel = "Allow",
+            onAction = { AlarmScheduler(context).openExactAlarmSettings() }
+        )
+        NoticeCard(
+            visible = !batteryOptIgnored && !batteryBannerDismissed,
+            icon = Icons.Rounded.BatterySaver,
+            text = "Some phones silence alarms to save battery. Let Meluko run freely.",
+            actionLabel = "Allow",
+            onAction = {
+                context.startActivity(
+                    Intent(
+                        Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                        Uri.parse("package:${context.packageName}")
+                    )
+                )
+            },
+            onDismiss = {
+                batteryBannerDismissed = true
+                prefs.edit().putBoolean("battery_banner_dismissed", true).apply()
+            }
+        )
+    }
+    if (!isOnline || !exactAlarmGranted || (!batteryOptIgnored && !batteryBannerDismissed)) {
+        Spacer(Modifier.height(14.dp))
+    }
+}
+
+@Composable
+private fun NoticeCard(
+    visible: Boolean,
+    icon: ImageVector,
+    text: String,
+    emphasis: Boolean = false,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
+    onDismiss: (() -> Unit)? = null,
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn() + expandVertically(),
+        exit = fadeOut() + shrinkVertically()
+    ) {
+        val container = if (emphasis) MaterialTheme.colorScheme.errorContainer
+        else MaterialTheme.colorScheme.surfaceContainerHigh
+        val content = if (emphasis) MaterialTheme.colorScheme.onErrorContainer
+        else MaterialTheme.colorScheme.onSurface
+        Surface(shape = MaterialTheme.shapes.medium, color = container) {
+            Row(
+                modifier = Modifier.padding(start = 14.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(icon, null, tint = content, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    text = text,
+                    fontSize = 13.sp,
+                    lineHeight = 17.sp,
+                    fontFamily = BodyFontFamily,
+                    color = content,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(vertical = 8.dp)
+                )
+                if (actionLabel != null && onAction != null) {
+                    TextButton(onClick = onAction) {
+                        Text(actionLabel, fontWeight = FontWeight.ExtraBold, fontFamily = DefaultFontFamily)
+                    }
+                }
+                if (onDismiss != null) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Rounded.Close, "Dismiss", tint = content.copy(alpha = 0.6f), modifier = Modifier.size(18.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Hero alarm card — a sunrise, not a box
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 fun AlarmHeroCard(
@@ -379,303 +407,325 @@ fun AlarmHeroCard(
     onProposeClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { visible = true }
-
-    // Live countdown — updates every minute
+    val context = LocalContext.current
+    val sunrise = MelukoTheme.colors.sunrise
     val countdown by produceState(initialValue = computeCountdown(nextAlarmTime), key1 = nextAlarmTime) {
         while (true) {
             value = computeCountdown(nextAlarmTime)
-            delay(60_000L)
+            delay(30_000L)
         }
     }
+    val (time, amPm) = to12HourParts(nextAlarmTime)
 
-    val context = LocalContext.current
-    val timePart = run {
-        val parts = nextAlarmTime.split(":")
-        val hour24 = parts.getOrElse(0) { "7" }.toIntOrNull() ?: 7
-        val minute = parts.getOrElse(1) { "30" }.replace(Regex("[^0-9]"), "")
-        val hour12 = when {
-            hour24 == 0 -> 12
-            hour24 > 12 -> hour24 - 12
-            else -> hour24
-        }
-        "%d:%s".format(hour12, minute)
-    }
-    val amPmPart = run {
-        val hour24 = nextAlarmTime.split(":").getOrElse(0) { "7" }.toIntOrNull() ?: 7
-        if (hour24 >= 12) "PM" else "AM"
-    }
+    val spin by rememberInfiniteTransition(label = "heroSun").animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(tween(40_000, easing = LinearEasing)),
+        label = "heroSunSpin"
+    )
+    val sunShape = MaterialShapes.Sunny.toShape()
+    val onHero = Color(0xFF2A1100)
 
-    AnimatedVisibility(
-        visible = visible,
-        enter = scaleIn(
-            animationSpec = MotionSpec.cardEnter,
-            initialScale = 0.88f
-        ) + fadeIn(
-            animationSpec = MotionSpec.touch
-        ),
+    Box(
         modifier = modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.extraLarge)
+            .background(Brush.linearGradient(sunrise.reversed()))
+            .drawBehind {
+                // Soft highlight from the top-left, like low morning light
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        listOf(Color.White.copy(alpha = 0.28f), Color.Transparent),
+                        center = Offset(size.width * 0.1f, 0f),
+                        radius = size.width * 0.8f
+                    ),
+                    radius = size.width * 0.8f,
+                    center = Offset(size.width * 0.1f, 0f)
+                )
+            }
     ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .pressScale(),
-        shape     = RoundedCornerShape(12.dp),
-        colors    = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Column(
-            modifier            = Modifier
-                .fillMaxWidth()
-                .padding(28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Label
+        // Decorative expressive sun, slowly turning in the corner
+        Box(
+            Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = 56.dp, y = (-56).dp)
+                .size(200.dp)
+                .graphicsLayer { rotationZ = spin }
+                .background(Color.White.copy(alpha = 0.16f), sunShape)
+        )
+
+        Column(Modifier.padding(start = 24.dp, end = 24.dp, top = 22.dp, bottom = 20.dp)) {
             Text(
-                text          = "NEXT ALARM",
-                fontSize      = 11.sp,
-                fontWeight    = FontWeight.Bold,
-                fontFamily    = DefaultFontFamily,
-                letterSpacing = 3.sp,
-                color         = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f)
+                text = "NEXT ALARM",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.ExtraBold,
+                fontFamily = DefaultFontFamily,
+                letterSpacing = 2.sp,
+                color = onHero.copy(alpha = 0.7f)
             )
-
-            Spacer(Modifier.height(8.dp))
-
-            // Big time + AM centered
-            Row(
-                verticalAlignment = Alignment.Bottom,
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center
-            ) {
+            Row(verticalAlignment = Alignment.Bottom) {
                 Text(
-                    text       = timePart,
-                    fontSize   = 72.sp,
+                    text = time,
+                    fontSize = 76.sp,
+                    lineHeight = 80.sp,
                     fontWeight = FontWeight.Black,
                     fontFamily = DefaultFontFamily,
-                    color      = MaterialTheme.colorScheme.onPrimaryContainer,
-                    lineHeight = 76.sp
+                    color = onHero
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text       = amPmPart,
-                    fontSize   = 22.sp,
+                    text = amPm,
+                    fontSize = 22.sp,
                     fontWeight = FontWeight.Black,
                     fontFamily = DefaultFontFamily,
-                    color      = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier   = Modifier.padding(bottom = 10.dp)
+                    color = onHero.copy(alpha = 0.8f),
+                    modifier = Modifier.padding(bottom = 14.dp)
                 )
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Countdown chip
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Frosted chip — glass over the warm gradient
                 Surface(
-                    shape = RoundedCornerShape(50),
-                    color = MaterialTheme.colorScheme.primary
+                    shape = CircleShape,
+                    color = Color.White.copy(alpha = 0.26f),
+                    modifier = Modifier.border(1.dp, Color.White.copy(alpha = 0.4f), CircleShape)
                 ) {
-                Text(
-                    text       = countdown,
-                    fontSize   = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = BodyFontFamily,
-                    color      = MaterialTheme.colorScheme.onPrimary,
-                        modifier   = Modifier.padding(horizontal = 16.dp, vertical = 7.dp)
+                    Text(
+                        text = countdown,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = BodyFontFamily,
+                        color = onHero,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp)
                     )
                 }
-
-                Spacer(Modifier.width(12.dp))
-
-                // Propose button — only visible when user has a tribe
+                Spacer(Modifier.weight(1f))
+                if (BuildConfig.DEBUG) {
+                    IconButton(onClick = { AlarmScheduler(context).scheduleIn(5) }) {
+                        Icon(Icons.Rounded.BugReport, "Test alarm in 5 seconds", tint = onHero.copy(alpha = 0.6f))
+                    }
+                }
                 if (hasTribe) {
                     Button(
                         onClick = onProposeClick,
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onPrimaryContainer),
-                        shape = RoundedCornerShape(50)
+                        colors = ButtonDefaults.buttonColors(containerColor = onHero, contentColor = Color.White),
+                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp),
+                        modifier = Modifier.pressScale()
                     ) {
-                        Text(
-                            text = "PROPOSE ALARM",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = DefaultFontFamily,
-                            color = MaterialTheme.colorScheme.primaryContainer
-                        )
-                    }
-                }
-
-                if (BuildConfig.DEBUG) {
-                    Spacer(Modifier.width(8.dp))
-                    OutlinedButton(
-                        onClick = { AlarmScheduler(context).scheduleIn(5) },
-                        shape = RoundedCornerShape(50),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error
-                        )
-                    ) {
-                        Text(
-                            text = "TEST",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = DefaultFontFamily
-                        )
+                        Icon(Icons.Rounded.Alarm, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Propose", fontWeight = FontWeight.ExtraBold, fontFamily = DefaultFontFamily)
                     }
                 }
             }
         }
     }
-    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Active Tribes Section
+//  Tribe summary
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
-fun ActiveTribesSection(
-    tribes:   List<TribeInfo>,
-    onTribeClick: (String) -> Unit,
+internal fun TribeSummaryCard(
+    tribe: TribeProgress?,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier) {
-        // Header
-        Text(
-            text       = "${tribes.size} tribes active",
-            fontSize   = 13.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = DefaultFontFamily,
-            color      = MaterialTheme.colorScheme.onSurfaceVariant,
-            letterSpacing = 0.5.sp,
-            modifier   = Modifier.padding(bottom = 12.dp)
-        )
-
-        // Horizontally scrollable tribe chips
-        Row(
-            modifier              = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            tribes.forEach { tribe ->
-                TribeChip(tribe = tribe, onClick = { onTribeClick(tribe.id) })
-            }
-        }
-    }
-}
-
-@Composable
-private fun TribeChip(tribe: TribeInfo, onClick: () -> Unit) {
-    Surface(
-        modifier = Modifier.pressScale(),
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 0.dp,
-        onClick = onClick
-    ) {
-        Row(
-            modifier              = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment     = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            TribeAvatar(
-                photoUrl = tribe.photoUrl,
-                name     = tribe.name,
-                size     = 40.dp
+    if (tribe == null) {
+        MelukoCard(modifier = modifier.fillMaxWidth()) {
+            Text(
+                text = "You're not in a tribe yet. Mornings are better together.",
+                fontSize = 14.sp,
+                fontFamily = BodyFontFamily,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(20.dp)
             )
-            Column {
+        }
+        return
+    }
+    MelukoCard(modifier = modifier.fillMaxWidth(), onClick = onClick) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TribeAvatar(photoUrl = tribe.photoUrl, name = tribe.name, size = 52.dp)
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
                 Text(
-                    text       = tribe.name,
-                    fontSize   = 13.sp,
-                    fontWeight = FontWeight.Bold,
+                    text = tribe.name,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.ExtraBold,
                     fontFamily = DefaultFontFamily,
-                    color      = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface
                 )
+                Spacer(Modifier.height(2.dp))
                 Text(
-                    text       = "${tribe.memberCount} members",
-                    fontSize   = 10.sp,
-                    fontWeight = FontWeight.Medium,
+                    text = "${plural(tribe.totalCount, "member")} · ${tribe.awakeCount} up today",
+                    fontSize = 13.sp,
                     fontFamily = BodyFontFamily,
-                    color      = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(10.dp))
+                AwakeMeter(awake = tribe.awakeCount, total = tribe.totalCount)
+            }
+            Spacer(Modifier.width(8.dp))
+            Icon(
+                Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = "Open tribe",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+/** Segmented bar: one pill per member, filled amber when they're up. */
+@Composable
+private fun AwakeMeter(awake: Int, total: Int) {
+    val count = total.coerceIn(1, 12)
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
+        repeat(count) { i ->
+            Box(
+                Modifier
+                    .weight(1f)
+                    .height(6.dp)
+                    .background(
+                        if (i < awake) MelukoTheme.colors.awake
+                        else MaterialTheme.colorScheme.outlineVariant,
+                        CircleShape
+                    )
+            )
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Week strip — the last 7 days, derived from the current streak
+// ─────────────────────────────────────────────────────────────────────────────
+private enum class DayMark { Woke, Missed, Today, Empty }
+
+@Composable
+private fun WeekCard(
+    streakDays: Int,
+    bestStreak: Int,
+    lastWakeDate: String?,
+    todayStatus: WakeStatus,
+    modifier: Modifier = Modifier
+) {
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
+    val days = remember(streakDays, lastWakeDate, todayStatus, locale) {
+        weekMarks(streakDays, lastWakeDate, todayStatus, locale)
+    }
+    MelukoCard(modifier = modifier.fillMaxWidth()) {
+        Column(Modifier.padding(20.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                days.forEach { (label, mark) -> DayDot(label, mark) }
+            }
+            Spacer(Modifier.height(18.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Rounded.EmojiEvents, null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "Best streak: ${plural(bestStreak, "day")}",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    fontFamily = BodyFontFamily,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(Modifier.weight(1f))
+                Text(
+                    text = when {
+                        streakDays == 0 -> "Start one tomorrow"
+                        streakDays >= bestStreak -> "Personal best!"
+                        else -> "${bestStreak - streakDays} to beat it"
+                    },
+                    fontSize = 13.sp,
+                    fontFamily = BodyFontFamily,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Stats Row
-// ─────────────────────────────────────────────────────────────────────────────
 @Composable
-private fun StatsRow(
-    streakDays: Int,
-    totalWakes: Int,
-    rank: Int,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier              = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        StatCard(Icons.Filled.LocalFireDepartment, "$streakDays", "Streak",    MaterialTheme.colorScheme.primaryContainer,    MaterialTheme.colorScheme.onPrimaryContainer,   Modifier.weight(1f).celebrateBurst(rememberIncreaseTrigger(streakDays)))
-        StatCard(Icons.Filled.WbSunny,             "$totalWakes", "Wake-ups",  MaterialTheme.colorScheme.secondaryContainer,  MaterialTheme.colorScheme.onSecondaryContainer,  Modifier.weight(1f))
-        StatCard(Icons.Filled.EmojiEvents,         "#$rank",      "Rank",      MaterialTheme.colorScheme.tertiaryContainer,   MaterialTheme.colorScheme.onTertiaryContainer,   Modifier.weight(1f))
-    }
-}
-
-@Composable
-private fun StatCard(
-    icon:           androidx.compose.ui.graphics.vector.ImageVector,
-    value:          String,
-    label:          String,
-    containerColor: Color,
-    contentColor:   Color,
-    modifier:       Modifier = Modifier
-) {
-    Card(
-        modifier  = modifier.height(100.dp).pressScale(pressedScale = 0.92f),
-        shape     = RoundedCornerShape(12.dp),
-        colors    = CardDefaults.cardColors(containerColor = containerColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Column(
-            modifier            = Modifier
-                .fillMaxSize()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(26.dp)
-                    .clip(CircleShape)
-                    .background(contentColor.copy(alpha = 0.16f)),
+private fun DayDot(label: String, mark: DayMark) {
+    val c = MelukoTheme.colors
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        val dotModifier = Modifier.size(32.dp)
+        when (mark) {
+            DayMark.Woke -> Box(
+                dotModifier.background(c.awake, MaterialShapes.Cookie6Sided.toShape()),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(15.dp))
+                Icon(Icons.Rounded.WbSunny, null, tint = Color(0xFF2A1100), modifier = Modifier.size(16.dp))
             }
-            Column {
-                Text(
-                    text       = value,
-                    fontSize   = 22.sp,
-                    fontWeight = FontWeight.Black,
-                    fontFamily = DefaultFontFamily,
-                    color      = contentColor,
-                    lineHeight = 24.sp
-                )
-                Text(
-                    text       = label,
-                    fontSize   = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = BodyFontFamily,
-                    color      = contentColor.copy(alpha = 0.65f),
-                    letterSpacing = 0.5.sp
-                )
+            DayMark.Missed -> Box(
+                dotModifier.background(c.missed.copy(alpha = 0.22f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Rounded.Close, null, tint = c.missed, modifier = Modifier.size(16.dp))
             }
+            DayMark.Today -> Box(
+                dotModifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+            )
+            DayMark.Empty -> Box(
+                dotModifier.background(MaterialTheme.colorScheme.surfaceContainerHighest, CircleShape)
+            )
         }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = DefaultFontFamily,
+            color = if (mark == DayMark.Today) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
+}
+
+/**
+ * We only store the current streak and last wake date, so the strip shows the
+ * run of consecutive wake-ups ending at [lastWakeDate]; anything before that
+ * run is unknown (empty), not assumed missed.
+ */
+private fun weekMarks(
+    streakDays: Int,
+    lastWakeDate: String?,
+    todayStatus: WakeStatus,
+    locale: Locale
+): List<Pair<String, DayMark>> {
+    val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+    val dayFormat = SimpleDateFormat("EEEEE", locale)
+    val lastWake = lastWakeDate?.let { runCatching { dateFormat.parse(it) }.getOrNull() }
+    val today = Calendar.getInstance()
+
+    return (6 downTo 0).map { daysAgo ->
+        val day = (today.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, -daysAgo) }
+        val label = dayFormat.format(day.time)
+        val isToday = daysAgo == 0
+        val mark = when {
+            isToday && todayStatus == WakeStatus.Missed -> DayMark.Missed
+            lastWake != null && streakDays > 0 && withinStreak(day, lastWake, streakDays) -> DayMark.Woke
+            isToday -> DayMark.Today
+            else -> DayMark.Empty
+        }
+        label to mark
+    }
+}
+
+private fun withinStreak(day: Calendar, lastWake: Date, streakDays: Int): Boolean {
+    val dayStart = (day.clone() as Calendar).apply {
+        set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+    }.timeInMillis
+    val diffDays = ((lastWake.time - dayStart) / 86_400_000L).toInt()
+    return diffDays in 0 until streakDays
 }
 
 private fun isIgnoringBatteryOptimizations(context: Context): Boolean {
@@ -687,11 +737,11 @@ private fun isIgnoringBatteryOptimizations(context: Context): Boolean {
 //  Countdown helper
 // ─────────────────────────────────────────────────────────────────────────────
 fun computeCountdown(timeString: String): String {
-    val parts       = timeString.split(":")
-    val alarmHour   = parts.getOrElse(0) { "7" }.toIntOrNull()  ?: 7
+    val parts = timeString.split(":")
+    val alarmHour = parts.getOrElse(0) { "7" }.toIntOrNull() ?: 7
     val alarmMinute = parts.getOrElse(1) { "30" }.toIntOrNull() ?: 30
 
-    val now   = Calendar.getInstance()
+    val now = Calendar.getInstance()
     val alarm = Calendar.getInstance().apply {
         set(Calendar.HOUR_OF_DAY, alarmHour)
         set(Calendar.MINUTE, alarmMinute)
@@ -701,140 +751,18 @@ fun computeCountdown(timeString: String): String {
     if (!alarm.after(now)) alarm.add(Calendar.DAY_OF_MONTH, 1)
 
     val diffMillis = alarm.timeInMillis - now.timeInMillis
-    val hours      = (diffMillis / (1000 * 60 * 60)).toInt()
-    val minutes    = ((diffMillis % (1000 * 60 * 60)) / (1000 * 60)).toInt()
+    val hours = (diffMillis / (1000 * 60 * 60)).toInt()
+    val minutes = ((diffMillis % (1000 * 60 * 60)) / (1000 * 60)).toInt()
 
     return when {
-        hours > 0   -> "in ${hours}h ${minutes}m"
-        minutes > 0 -> "in ${minutes}m"
-        else        -> "Starting soon"
+        hours > 0 -> "Rings in ${hours}h ${minutes}m"
+        minutes > 0 -> "Rings in ${minutes}m"
+        else -> "Ringing soon"
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Consistency Card — real data from Firestore
-// ─────────────────────────────────────────────────────────────────────────────
-@Composable
-fun ConsistencyCard(
-    streakDays: Int,
-    totalWakes: Int,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Text(
-                text = "Consistency",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = DefaultFontFamily,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                letterSpacing = 0.5.sp
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                ConsistencyMetric(Icons.Filled.LocalFireDepartment, "$streakDays", "Current streak", MaterialTheme.colorScheme.primary)
-                ConsistencyMetric(Icons.Filled.WbSunny, "$totalWakes", "Total wake-ups", MaterialTheme.colorScheme.tertiary)
-            }
-        }
-    }
-}
-
-@Composable
-private fun ConsistencyMetric(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    value: String,
-    label: String,
-    tint: Color
-) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = value,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Black,
-            fontFamily = DefaultFontFamily,
-            color = MaterialTheme.colorScheme.onSurface,
-            lineHeight = 30.sp
-        )
-        Text(
-            text = label,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = BodyFontFamily,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            letterSpacing = 0.3.sp
-        )
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  Shimmer skeleton
-// ─────────────────────────────────────────────────────────────────────────────
-@Composable
-private fun HomeShimmer(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-    ) {
-        Spacer(Modifier.height(20.dp))
-        ScreenHeader("MELUKO")
-        Spacer(Modifier.height(12.dp))
-        ShimmerCard(
-            modifier = Modifier.padding(horizontal = 20.dp),
-            height = 240.dp
-        )
-        Spacer(Modifier.height(20.dp))
-        ShimmerLine(
-            width = 100.dp,
-            height = 14.dp,
-            modifier = Modifier.padding(horizontal = 20.dp)
-        )
-        Spacer(Modifier.height(12.dp))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            ShimmerTribeChip()
-            ShimmerTribeChip()
-            ShimmerTribeChip()
-        }
-        Spacer(Modifier.height(20.dp))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            ShimmerStatCard(Modifier.weight(1f))
-            ShimmerStatCard(Modifier.weight(1f))
-            ShimmerStatCard(Modifier.weight(1f))
-        }
-        Spacer(Modifier.height(20.dp))
-        ShimmerCard(
-            modifier = Modifier.padding(horizontal = 20.dp),
-            height = 160.dp
-        )
-        Spacer(Modifier.height(120.dp))
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  Previews
+//  Preview
 // ─────────────────────────────────────────────────────────────────────────────
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
@@ -843,8 +771,9 @@ private fun HomePreview() {
         HomeScreenContent(
             nextAlarmTime = "07:30",
             hasTribe = true,
-            activeTribes = emptyList(),
+            tribe = TribeProgress("t", "Hostel 4B", null, 3, 5),
             streakDays = 5,
+            bestStreak = 9,
             totalWakes = 23,
             rank = 2,
             onTribeClick = {},

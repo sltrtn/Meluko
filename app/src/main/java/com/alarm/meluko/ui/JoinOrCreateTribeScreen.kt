@@ -103,7 +103,7 @@ fun JoinOrCreateTribeScreen(
                         val isSelected = isJoining == joining
                         Surface(
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = MaterialTheme.shapes.large,
                             color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
                             onClick = {
                                 isJoining = joining
@@ -215,7 +215,7 @@ fun JoinOrCreateTribeScreen(
                                     colors = CardDefaults.cardColors(
                                         containerColor = MaterialTheme.colorScheme.primaryContainer
                                     ),
-                                    shape = RoundedCornerShape(12.dp)
+                                    shape = MaterialTheme.shapes.large
                                 ) {
                                     Row(
                                         modifier = Modifier.padding(12.dp),
@@ -242,7 +242,7 @@ fun JoinOrCreateTribeScreen(
                     Spacer(Modifier.height(12.dp))
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = MaterialTheme.shapes.large
                     ) {
                         Text(
                             text = error!!,
@@ -270,14 +270,13 @@ fun JoinOrCreateTribeScreen(
                         .fillMaxWidth()
                         .height(64.dp)
                         .pressScale(),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = MaterialTheme.shapes.large,
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
                     if (isLoading) {
-                        CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(22.dp)
+                        LoadingIndicator(
+                            modifier = Modifier.size(36.dp),
+                            color = MaterialTheme.colorScheme.onPrimary
                         )
                     } else {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

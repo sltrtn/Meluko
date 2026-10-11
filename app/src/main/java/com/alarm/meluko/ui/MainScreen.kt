@@ -10,8 +10,15 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.util.lerp
 import com.alarm.meluko.navigation.MelukoBottomNavigation
+import com.alarm.meluko.ui.components.LocalHazeState
+import com.alarm.meluko.ui.components.aurora
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.launch
+import kotlin.math.absoluteValue
 
 private const val HOME_TAB = 1
 
@@ -20,42 +27,58 @@ fun MainScreen(
     onNavigateToTribe: (String) -> Unit = {}
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(HOME_TAB) }
-    val pagerState = rememberPagerState(
-        initialPage = HOME_TAB,
-        pageCount = { 3 }
-    )
+    val pagerState = rememberPagerState(initialPage = HOME_TAB, pageCount = { 3 })
     val scope = rememberCoroutineScope()
-    val bgColor = MaterialTheme.colorScheme.background
+    val hazeState = rememberHazeState()
 
     LaunchedEffect(pagerState.currentPage) {
         selectedTab = pagerState.currentPage
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(bgColor)
-    ) {
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize()
-        ) { page ->
-            when (page) {
-                0 -> SocialScreen(onNavigateToTribe = onNavigateToTribe)
-                1 -> HomeScreen(onTribeClick = onNavigateToTribe)
-                2 -> AccountScreen()
-                else -> HomeScreen(onTribeClick = onNavigateToTribe)
-            }
-        }
-
-        MelukoBottomNavigation(
-            selectedTab = selectedTab,
-            onTabSelected = { page ->
-                scope.launch {
-                    pagerState.animateScrollToPage(page)
+    CompositionLocalProvider(LocalHazeState provides hazeState) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        ) {
+            // Everything the glass nav bar frosts lives inside the haze source.
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .hazeSource(hazeState)
+                    .aurora()
+            ) {
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize(),
+                    beyondViewportPageCount = 1
+                ) { page ->
+                    // Pages recede slightly as they're swiped away — depth, not a hard slide.
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                val offset = pagerState.getOffsetDistanceInPages(page).absoluteValue.coerceIn(0f, 1f)
+                                val scale = lerp(1f, 0.94f, offset)
+                                scaleX = scale
+                                scaleY = scale
+                                alpha = lerp(1f, 0.55f, offset)
+                            }
+                    ) {
+                        when (page) {
+                            0 -> SocialScreen(onNavigateToTribe = onNavigateToTribe)
+                            2 -> AccountScreen()
+                            else -> HomeScreen(onTribeClick = onNavigateToTribe)
+                        }
+                    }
                 }
-            },
-            modifier = Modifier.align(Alignment.BottomCenter)
-        )
+            }
+
+            MelukoBottomNavigation(
+                selectedTab = selectedTab,
+                onTabSelected = { page -> scope.launch { pagerState.animateScrollToPage(page) } },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+        }
     }
 }

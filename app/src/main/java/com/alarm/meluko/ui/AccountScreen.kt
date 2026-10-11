@@ -4,13 +4,12 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -18,27 +17,27 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material.icons.automirrored.outlined.ExitToApp
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.outlined.CameraAlt
-import androidx.compose.material.icons.filled.Alarm
-import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material.icons.rounded.Alarm
+import androidx.compose.material.icons.rounded.DeleteForever
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.EmojiEvents
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.LocalFireDepartment
+import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -50,6 +49,13 @@ import com.alarm.meluko.auth.AuthViewModel
 import com.alarm.meluko.ui.theme.DefaultFontFamily
 import com.alarm.meluko.ui.theme.BodyFontFamily
 import com.alarm.meluko.ui.theme.MelukoTheme
+import com.alarm.meluko.ui.components.Hairline
+import com.alarm.meluko.ui.components.MelukoCard
+import com.alarm.meluko.ui.components.MelukoLoading
+import com.alarm.meluko.ui.components.SectionHeader
+import com.alarm.meluko.ui.components.ShapeIconBadge
+import com.alarm.meluko.ui.components.StatTile
+import com.alarm.meluko.ui.components.staggeredEnter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,7 +73,6 @@ fun AccountScreen(
     val bestStreak by accountViewModel.bestStreak.collectAsState()
     val totalWakes by accountViewModel.totalWakes.collectAsState()
     val isUpdating by accountViewModel.isUpdating.collectAsState()
-    val notificationsEnabled by accountViewModel.notificationsEnabled.collectAsState()
     val tribesProgress by socialViewModel.tribes.collectAsState()
     val accountError by accountViewModel.error.collectAsState()
 
@@ -84,7 +89,6 @@ fun AccountScreen(
 
     // Dialog / sheet state
     var showEditProfile by remember { mutableStateOf(false) }
-    var showNotifications by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
     var showDeleteAccountConfirm by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -193,7 +197,7 @@ fun AccountScreen(
                         )
                     )
 
-                    if (isUpdating) CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    if (isUpdating) LoadingIndicator(modifier = Modifier.size(40.dp))
                 }
             },
             confirmButton = {
@@ -224,54 +228,6 @@ fun AccountScreen(
         )
     }
 
-    // ── Notifications Bottom Sheet ────────────────────────────────────────────
-    if (showNotifications) {
-        ModalBottomSheet(
-            onDismissRequest = { showNotifications = false }
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 24.dp, vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
-            ) {
-                Text(
-                    text = "Notifications",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Black,
-                    fontFamily = DefaultFontFamily
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Alarm nudges",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = DefaultFontFamily
-                        )
-                        Text(
-                            text = "Get notified when tribe members wake up before you",
-                            fontSize = 12.sp,
-                            fontFamily = BodyFontFamily,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Spacer(Modifier.width(16.dp))
-                    Switch(
-                        checked = notificationsEnabled,
-                        onCheckedChange = { accountViewModel.updateNotificationPrefs(it) }
-                    )
-                }
-                Spacer(Modifier.height(8.dp))
-            }
-        }
-    }
-
     // ── About Dialog ──────────────────────────────────────────────────────────
     if (showAbout) {
         AlertDialog(
@@ -293,7 +249,7 @@ fun AccountScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "Version 1.0.0",
+                        text = "Version ${com.alarm.meluko.BuildConfig.VERSION_NAME}",
                         fontFamily = BodyFontFamily,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -399,7 +355,7 @@ fun AccountScreen(
                     )
                     if (isUpdating) {
                         Spacer(Modifier.height(4.dp))
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        LoadingIndicator(modifier = Modifier.size(40.dp))
                     }
                 }
             },
@@ -429,185 +385,89 @@ fun AccountScreen(
 
     // ── Main Screen ───────────────────────────────────────────────────────────
     Box(modifier = Modifier.fillMaxSize()) {
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.background
-        ) {
-            if (!isLoaded) {
-                AccountShimmer()
-                return@Surface
-            }
+        if (!isLoaded) {
+            MelukoLoading()
+        } else {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
                     .statusBarsPadding()
             ) {
-            // Header
-            ScreenHeader("ACCOUNT")
+                ScreenHeader(title = "Account")
 
-            // Hero profile card with entrance animation
-            var heroVisible by remember { mutableStateOf(false) }
-            LaunchedEffect(Unit) { heroVisible = true }
+                ProfileHero(
+                    displayName = displayName,
+                    username = username,
+                    bio = bio,
+                    photoUrl = photoUrl,
+                    tribeName = activeTribes.firstOrNull()?.name,
+                    onEdit = {
+                        editName = displayName
+                        editBio = bio
+                        pickedImageUri = null
+                        showEditProfile = true
+                    },
+                    modifier = Modifier
+                        .padding(horizontal = 20.dp)
+                        .staggeredEnter(0)
+                )
 
-            AnimatedVisibility(
-                visible = heroVisible,
-                enter = scaleIn(
-                    animationSpec = MotionSpec.cardEnter,
-                    initialScale = 0.90f
-                ) + fadeIn(
-                    animationSpec = MotionSpec.touch
-                ),
-                modifier = Modifier.padding(horizontal = 20.dp)
-            ) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
-                    elevation = CardDefaults.cardElevation(0.dp)
-                ) {
-                Column(
+                Spacer(Modifier.height(14.dp))
+
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(28.dp),
-                    horizontalAlignment = Alignment.Start
+                        .padding(horizontal = 20.dp)
+                        .staggeredEnter(1),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        UserAvatar(photoUrl = photoUrl, name = displayName, size = 64.dp)
-                        Column {
-                            Text(
-                                text = displayName.ifBlank { "Loading..." },
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Black,
-                                fontFamily = DefaultFontFamily,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer
-                            )
-                            Text(
-                                text = if (username.isNotBlank()) "@$username" else "",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = BodyFontFamily,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.6f)
-                            )
-                            if (bio.isNotBlank()) {
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    text = bio,
-                                    fontSize = 12.sp,
-                                    fontFamily = BodyFontFamily,
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f),
-                                    maxLines = 2
-                                )
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(20.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        AccountPill(
-                            text = "$streakDays-day streak",
-                            color = MaterialTheme.colorScheme.tertiary,
-                            on = MaterialTheme.colorScheme.onTertiary
-                        )
-                        AccountPill(
-                            text = "$totalWakes wake-ups",
-                            color = MaterialTheme.colorScheme.primary,
-                            on = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
+                    StatTile(
+                        icon = Icons.Rounded.LocalFireDepartment,
+                        polygon = MaterialShapes.Sunny,
+                        value = streakDays,
+                        label = "Day streak",
+                        container = MaterialTheme.colorScheme.primaryContainer,
+                        content = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier
+                            .weight(1f)
+                            .celebrateBurst(rememberIncreaseTrigger(streakDays))
+                    )
+                    StatTile(
+                        icon = Icons.Rounded.EmojiEvents,
+                        polygon = MaterialShapes.SoftBurst,
+                        value = bestStreak,
+                        label = "Best streak",
+                        container = MaterialTheme.colorScheme.tertiaryContainer,
+                        content = MaterialTheme.colorScheme.onTertiaryContainer,
+                        modifier = Modifier.weight(1f)
+                    )
+                    StatTile(
+                        icon = Icons.Rounded.WbSunny,
+                        polygon = MaterialShapes.Cookie9Sided,
+                        value = totalWakes,
+                        label = "Wake-ups",
+                        container = MaterialTheme.colorScheme.secondaryContainer,
+                        content = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
-            }
-            }
 
-            Spacer(Modifier.height(20.dp))
-
-            // Stats row
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                AccountStatCard(Icons.Filled.WbSunny, "$totalWakes", "Wake-ups", Modifier.weight(1f))
-                AccountStatCard(Icons.Filled.LocalFireDepartment, "$streakDays d", "Streak", Modifier.weight(1f).celebrateBurst(rememberIncreaseTrigger(streakDays)))
-                AccountStatCard(Icons.Filled.EmojiEvents, "$bestStreak d", "Best", Modifier.weight(1f))
-            }
-
-            Spacer(Modifier.height(24.dp))
-
-            // Your tribes
-            if (activeTribes.isNotEmpty()) {
-                Text(
-                    text = "Your Tribes",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = DefaultFontFamily,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    letterSpacing = 0.5.sp,
-                    modifier = Modifier.padding(horizontal = 20.dp)
-                )
+                Spacer(Modifier.height(28.dp))
+                SectionHeader("Settings", Modifier.padding(horizontal = 24.dp))
                 Spacer(Modifier.height(10.dp))
-                Column(
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                MelukoCard(
+                    modifier = Modifier
+                        .padding(horizontal = 20.dp)
+                        .fillMaxWidth()
+                        .staggeredEnter(2)
                 ) {
-                    activeTribes.forEach { tribe ->
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                TribeAvatar(photoUrl = tribe.photoUrl, name = tribe.name, size = 32.dp)
-                                Text(
-                                    text = tribe.name,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = DefaultFontFamily,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                Text(
-                                    text = "${tribe.memberCount} members",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = BodyFontFamily,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
-                Spacer(Modifier.height(24.dp))
-            }
-
-            // Settings
-            Text(
-                text = "Settings",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = DefaultFontFamily,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                letterSpacing = 0.5.sp,
-                modifier = Modifier.padding(horizontal = 20.dp)
-            )
-            Spacer(Modifier.height(10.dp))
-            Surface(
-                modifier = Modifier.padding(horizontal = 20.dp),
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh
-            ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
                     SettingsRow(
-                        icon = Icons.Outlined.Edit,
-                        label = "Edit Profile",
+                        icon = Icons.Rounded.Edit,
+                        polygon = MaterialShapes.Cookie6Sided,
+                        badgeColor = MaterialTheme.colorScheme.primaryContainer,
+                        badgeContent = MaterialTheme.colorScheme.onPrimaryContainer,
+                        label = "Edit profile",
                         onClick = {
                             editName = displayName
                             editBio = bio
@@ -615,82 +475,69 @@ fun AccountScreen(
                             showEditProfile = true
                         }
                     )
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        thickness = 0.5.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                    )
+                    Hairline(Modifier.padding(start = 72.dp))
                     SettingsRow(
-                        icon = Icons.Outlined.Notifications,
-                        label = "Notifications",
-                        onClick = { showNotifications = true }
-                    )
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        thickness = 0.5.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                    )
-                    SettingsRow(
-                        icon = Icons.Filled.Alarm,
-                        label = "Alarm Tone",
+                        icon = Icons.Rounded.Alarm,
+                        polygon = MaterialShapes.Clover4Leaf,
+                        badgeColor = MaterialTheme.colorScheme.secondaryContainer,
+                        badgeContent = MaterialTheme.colorScheme.onSecondaryContainer,
+                        label = "Alarm tone",
                         subtitle = alarmToneTitle
                             ?: if (alarmToneUri != null) "Custom tone" else "Default alarm",
                         onClick = { showToneSheet = true }
                     )
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        thickness = 0.5.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                    )
+                    Hairline(Modifier.padding(start = 72.dp))
                     SettingsRow(
-                        icon = Icons.Outlined.Info,
+                        icon = Icons.Rounded.Info,
+                        polygon = MaterialShapes.Pill,
+                        badgeColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        badgeContent = MaterialTheme.colorScheme.onTertiaryContainer,
                         label = "About Meluko",
                         onClick = { showAbout = true }
                     )
                 }
-            }
 
-            Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(28.dp))
+                SectionHeader("Account", Modifier.padding(horizontal = 24.dp))
+                Spacer(Modifier.height(10.dp))
+                MelukoCard(
+                    modifier = Modifier
+                        .padding(horizontal = 20.dp)
+                        .fillMaxWidth()
+                        .staggeredEnter(3)
+                ) {
+                    SettingsRow(
+                        icon = Icons.AutoMirrored.Rounded.Logout,
+                        polygon = MaterialShapes.Circle,
+                        badgeColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        badgeContent = MaterialTheme.colorScheme.onSurface,
+                        label = "Sign out",
+                        onClick = { authViewModel.signOut() }
+                    )
+                    Hairline(Modifier.padding(start = 72.dp))
+                    SettingsRow(
+                        icon = Icons.Rounded.DeleteForever,
+                        polygon = MaterialShapes.Circle,
+                        badgeColor = MaterialTheme.colorScheme.errorContainer,
+                        badgeContent = MaterialTheme.colorScheme.onErrorContainer,
+                        label = "Delete account",
+                        labelColor = MaterialTheme.colorScheme.error,
+                        onClick = { showDeleteAccountConfirm = true }
+                    )
+                }
 
-            // Sign out
-            Surface(
-                modifier = Modifier
-                    .padding(horizontal = 20.dp)
-                    .fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.errorContainer
-            ) {
-                SettingsRow(
-                    icon = Icons.AutoMirrored.Outlined.ExitToApp,
-                    label = "Sign Out",
-                    tint = MaterialTheme.colorScheme.onErrorContainer,
-                    textColor = MaterialTheme.colorScheme.onErrorContainer,
-                    onClick = { authViewModel.signOut() }
+                Spacer(Modifier.height(20.dp))
+                Text(
+                    text = "Meluko ${com.alarm.meluko.BuildConfig.VERSION_NAME} · wake up together",
+                    fontSize = 12.sp,
+                    fontFamily = BodyFontFamily,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
                 )
+
+                Spacer(Modifier.height(128.dp))
             }
-
-            Spacer(Modifier.height(12.dp))
-
-            // Danger zone
-            Surface(
-                modifier = Modifier
-                    .padding(horizontal = 20.dp)
-                    .fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh
-            ) {
-                SettingsRow(
-                    icon = Icons.Filled.DeleteForever,
-                    label = "Delete Account",
-                    tint = MaterialTheme.colorScheme.error,
-                    textColor = MaterialTheme.colorScheme.error,
-                    onClick = { showDeleteAccountConfirm = true }
-                )
-            }
-
-            Spacer(Modifier.height(120.dp))
         }
-    }
 
         SnackbarHost(
             hostState = snackbarHostState,
@@ -700,68 +547,94 @@ fun AccountScreen(
 }
 
 @Composable
-private fun AccountPill(
-    text: String,
-    color: androidx.compose.ui.graphics.Color,
-    on: androidx.compose.ui.graphics.Color
-) {
-    Surface(shape = RoundedCornerShape(50), color = color) {
-        Text(
-            text = text,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = DefaultFontFamily,
-            color = on,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
-        )
-    }
-}
-
-@Composable
-private fun AccountStatCard(
-    icon: ImageVector,
-    value: String,
-    label: String,
+private fun ProfileHero(
+    displayName: String,
+    username: String,
+    bio: String,
+    photoUrl: String?,
+    tribeName: String?,
+    onEdit: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier  = modifier.height(90.dp).pressScale(pressedScale = 0.93f),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-        elevation = CardDefaults.cardElevation(0.dp)
+    val c = MelukoTheme.colors
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.extraLarge)
+            .background(
+                Brush.linearGradient(
+                    listOf(
+                        c.auroraCool.copy(alpha = if (c.isDark) 0.45f else 0.35f),
+                        c.auroraWarm.copy(alpha = if (c.isDark) 0.35f else 0.40f)
+                    )
+                )
+            )
+            .border(1.dp, c.glassBorder, MaterialTheme.shapes.extraLarge)
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box(
-                modifier = Modifier
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
-            }
-            Column {
+            UserAvatar(
+                photoUrl = photoUrl,
+                name = displayName,
+                size = 96.dp,
+                shape = MaterialShapes.Cookie12Sided.toShape()
+            )
+            Spacer(Modifier.height(14.dp))
+            Text(
+                text = displayName.ifBlank { "You" },
+                fontSize = 26.sp,
+                lineHeight = 30.sp,
+                fontWeight = FontWeight.Black,
+                fontFamily = DefaultFontFamily,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            if (username.isNotBlank()) {
                 Text(
-                    text = value,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Black,
-                    fontFamily = DefaultFontFamily,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    lineHeight = 22.sp
-                )
-                Text(
-                    text = label,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
+                    text = "@$username",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
                     fontFamily = BodyFontFamily,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    letterSpacing = 0.3.sp
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+            if (bio.isNotBlank()) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = bio,
+                    fontSize = 14.sp,
+                    lineHeight = 19.sp,
+                    fontFamily = BodyFontFamily,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                    textAlign = TextAlign.Center,
+                    maxLines = 3
+                )
+            }
+            Spacer(Modifier.height(16.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (tribeName != null) {
+                    Surface(shape = CircleShape, color = c.glassTint) {
+                        Text(
+                            text = tribeName,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = DefaultFontFamily,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                        )
+                    }
+                }
+                FilledTonalButton(onClick = onEdit, modifier = Modifier.pressScale()) {
+                    Icon(Icons.Rounded.Edit, null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Edit", fontWeight = FontWeight.ExtraBold, fontFamily = DefaultFontFamily)
+                }
             }
         }
     }
@@ -770,119 +643,60 @@ private fun AccountStatCard(
 @Composable
 private fun SettingsRow(
     icon: ImageVector,
+    polygon: androidx.graphics.shapes.RoundedPolygon,
+    badgeColor: Color,
+    badgeContent: Color,
     label: String,
     subtitle: String? = null,
-    tint: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface,
-    textColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface,
+    labelColor: Color = MaterialTheme.colorScheme.onSurface,
     onClick: () -> Unit
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth().pressScale(),
-        color = androidx.compose.ui.graphics.Color.Transparent,
+        modifier = Modifier.fillMaxWidth(),
+        color = Color.Transparent,
         onClick = onClick
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = tint,
-                modifier = Modifier.size(20.dp)
+            ShapeIconBadge(
+                icon = icon,
+                polygon = polygon,
+                container = badgeColor,
+                content = badgeContent,
+                size = 40.dp,
+                iconSize = 20.dp
             )
+            Spacer(Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = label,
-                    fontSize = 14.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = DefaultFontFamily,
-                    color = textColor
+                    color = labelColor
                 )
                 if (subtitle != null) {
                     Text(
                         text = subtitle,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Normal,
+                        fontSize = 13.sp,
                         fontFamily = BodyFontFamily,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.size(18.dp)
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
             )
         }
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Shimmer skeleton
-// ─────────────────────────────────────────────────────────────────────────────
-@Composable
-private fun AccountShimmer(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .statusBarsPadding()
-    ) {
-        Spacer(Modifier.height(20.dp))
-        ScreenHeader("ACCOUNT")
-        Spacer(Modifier.height(12.dp))
-        ShimmerCard(
-            modifier = Modifier.padding(horizontal = 20.dp),
-            height = 180.dp
-        )
-        Spacer(Modifier.height(20.dp))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            ShimmerStatCard(Modifier.weight(1f))
-            ShimmerStatCard(Modifier.weight(1f))
-            ShimmerStatCard(Modifier.weight(1f))
-        }
-        Spacer(Modifier.height(24.dp))
-        ShimmerLine(
-            width = 100.dp,
-            height = 14.dp,
-            modifier = Modifier.padding(horizontal = 20.dp)
-        )
-        Spacer(Modifier.height(12.dp))
-        repeat(2) {
-            ShimmerCard(
-                modifier = Modifier
-                    .padding(horizontal = 20.dp)
-                    .padding(bottom = 8.dp),
-                height = 52.dp
-            )
-        }
-        Spacer(Modifier.height(24.dp))
-        ShimmerLine(
-            width = 100.dp,
-            height = 14.dp,
-            modifier = Modifier.padding(horizontal = 20.dp)
-        )
-        Spacer(Modifier.height(12.dp))
-        repeat(3) {
-            ShimmerSettingsRow(modifier = Modifier.padding(horizontal = 20.dp))
-        }
-        Spacer(Modifier.height(120.dp))
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  Preview
-// ─────────────────────────────────────────────────────────────────────────────
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 private fun AccountPreview() {

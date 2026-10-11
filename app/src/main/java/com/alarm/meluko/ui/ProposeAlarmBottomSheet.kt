@@ -44,6 +44,7 @@ fun ProposeAlarmBottomSheet(
     tribeId: String,
     proposalViewModel: ProposalViewModel,
     onDismiss: () -> Unit,
+    initialTime: String = "07:30",
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val isLoading by proposalViewModel.isLoading.collectAsState()
@@ -128,7 +129,7 @@ fun ProposeAlarmBottomSheet(
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text       = "The tribe will vote on this change.",
+                    text       = "Everyone gets 2 hours to veto it.",
                     fontSize   = 12.sp,
                     fontFamily = BodyFontFamily,
                     color      = MaterialTheme.colorScheme.onSurfaceVariant
@@ -136,9 +137,15 @@ fun ProposeAlarmBottomSheet(
 
                 Spacer(Modifier.height(48.dp))
 
-                var selectedHour by remember { mutableStateOf("07") }
-                var selectedMinute by remember { mutableStateOf("30") }
-                var selectedAmPm by remember { mutableStateOf("AM") }
+                // Start the wheels on the tribe's current alarm, not an arbitrary time.
+                val (initClock, initAmPm) = remember(initialTime) {
+                    com.alarm.meluko.util.to12HourParts(initialTime)
+                }
+                val initHour = initClock.substringBefore(":").toIntOrNull()?.coerceIn(1, 12) ?: 7
+                val initMinute = initClock.substringAfter(":", "30").toIntOrNull()?.coerceIn(0, 59) ?: 30
+                var selectedHour by remember { mutableStateOf(initHour.toString().padStart(2, '0')) }
+                var selectedMinute by remember { mutableStateOf(initMinute.toString().padStart(2, '0')) }
+                var selectedAmPm by remember { mutableStateOf(if (initAmPm == "PM") "PM" else "AM") }
 
                 Row(
                     modifier = Modifier
@@ -150,7 +157,7 @@ fun ProposeAlarmBottomSheet(
                 ) {
                     WheelPicker(
                         items = (1..12).map { it.toString().padStart(2, '0') },
-                        initialIndex = 6,
+                        initialIndex = initHour - 1,
                         onItemSelected = { selectedHour = it }
                     )
 
@@ -165,7 +172,7 @@ fun ProposeAlarmBottomSheet(
 
                     WheelPicker(
                         items = (0..59).map { it.toString().padStart(2, '0') },
-                        initialIndex = 30,
+                        initialIndex = initMinute,
                         onItemSelected = { selectedMinute = it }
                     )
 
@@ -173,7 +180,7 @@ fun ProposeAlarmBottomSheet(
 
                     WheelPicker(
                         items = listOf("AM", "PM"),
-                        initialIndex = 0,
+                        initialIndex = if (initAmPm == "PM") 1 else 0,
                         onItemSelected = { selectedAmPm = it }
                     )
                 }
@@ -194,17 +201,17 @@ fun ProposeAlarmBottomSheet(
                         .fillMaxWidth()
                         .padding(horizontal = 32.dp)
                         .height(64.dp),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = MaterialTheme.shapes.large,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     ),
                     enabled = proposeState == ProposeState.Idle
                 ) {
                     if (proposeState == ProposeState.Sending) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp
+                        LoadingIndicator(
+                            modifier = Modifier.size(36.dp),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     } else {
                         Text(
@@ -212,8 +219,7 @@ fun ProposeAlarmBottomSheet(
                             fontSize   = 16.sp,
                             fontWeight = FontWeight.Black,
                             fontFamily = DefaultFontFamily,
-                            letterSpacing = 2.sp,
-                            color      = MaterialTheme.colorScheme.onPrimary
+                            letterSpacing = 2.sp
                         )
                     }
                 }
@@ -230,7 +236,9 @@ fun WheelPicker(
     onItemSelected: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex + 2)
+    // 5 rows visible with 2 blank padding rows at each end, so when snapped the
+    // centred row is items[firstVisibleItemIndex].
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
     val snapBehavior = rememberSnapFlingBehavior(lazyListState = listState)
     val density = LocalDensity.current
     val itemHeightPx = with(density) { 68.dp.toPx() }
@@ -239,8 +247,8 @@ fun WheelPicker(
 
     LaunchedEffect(listState) {
         snapshotFlow { listState.firstVisibleItemIndex }.collect { index ->
-            if (index in 2 until items.size + 2) {
-                onItemSelected(items[index - 2])
+            if (index in items.indices) {
+                onItemSelected(items[index])
             }
         }
     }

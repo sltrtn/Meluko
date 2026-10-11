@@ -10,9 +10,7 @@ plugins {
 android {
     namespace = "com.alarm.meluko"
     compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
+        version = release(37)
     }
 
     defaultConfig {
@@ -61,6 +59,15 @@ android {
     }
 }
 
+kotlin {
+    compilerOptions {
+        optIn.addAll(
+            "androidx.compose.material3.ExperimentalMaterial3Api",
+            "androidx.compose.material3.ExperimentalMaterial3ExpressiveApi"
+        )
+    }
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -94,6 +101,7 @@ dependencies {
 
     // Coil — async image loading (user profile photos, tribe photos)
     implementation(libs.coil.compose)
+    implementation(libs.haze)
 
 
     testImplementation(libs.junit)

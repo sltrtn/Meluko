@@ -1,81 +1,142 @@
 package com.alarm.meluko.ui.theme
 
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-// ── Meluko · Seed: #FF8C00 (Sunrise Amber) ───────────────────────────────────
-//
-// All values derived from the M3 HCT tonal palette algorithm.
-// Seed hue ≈ 35° (amber-orange), high chroma.
-// Primary tones follow the M3 spec: T40 for light primary, T80 for dark primary.
-// Secondary uses same hue, reduced chroma (muted caramel).
-// Tertiary uses hue + 60° shift (→ golden yellow-green).
+// ── Meluko brand palette ─────────────────────────────────────────────────────
+// Fixed brand colors (no wallpaper dynamic color): every user sees Meluko.
+// Accents: Sunrise Amber (primary), Coral (secondary), Dusk Violet (tertiary).
+// Dark = "Dawn" (warm near-black), Light = "Morning" (warm cream).
 
-// ── Light scheme ─────────────────────────────────────────────────────────────
-val md_light_primary              = Color(0xFF8C4300)  // T40 — dark amber, strong on cream
-val md_light_onPrimary            = Color(0xFFFFFFFF)
-val md_light_primaryContainer     = Color(0xFFFFDBCA)  // T90 — soft peach
-val md_light_onPrimaryContainer   = Color(0xFF2E1400)  // T10
+val SunriseAmber = Color(0xFFFF8C00)
 
-val md_light_secondary            = Color(0xFF745A4F)  // same hue, low chroma — caramel
-val md_light_onSecondary          = Color(0xFFFFFFFF)
-val md_light_secondaryContainer   = Color(0xFFFFDBD1)  // warm blush
-val md_light_onSecondaryContainer = Color(0xFF2A1610)
+internal val MelukoDarkScheme = darkColorScheme(
+    primary = Color(0xFFFFB060),
+    onPrimary = Color(0xFF3D1D00),
+    primaryContainer = SunriseAmber,
+    onPrimaryContainer = Color(0xFF2A1100),
+    inversePrimary = Color(0xFF9A4A00),
 
-val md_light_tertiary             = Color(0xFF5C6023)  // hue + 60° → golden olive
-val md_light_onTertiary           = Color(0xFFFFFFFF)
-val md_light_tertiaryContainer    = Color(0xFFE2E59C)  // warm yellow-green tint
-val md_light_onTertiaryContainer  = Color(0xFF1A1D00)
+    secondary = Color(0xFFFF9E8A),
+    onSecondary = Color(0xFF4A140A),
+    secondaryContainer = Color(0xFF6B2A1D),
+    onSecondaryContainer = Color(0xFFFFDAD2),
 
-val md_light_error                = Color(0xFFBA1A1A)
-val md_light_onError              = Color(0xFFFFFFFF)
-val md_light_errorContainer       = Color(0xFFFFDAD6)
-val md_light_onErrorContainer     = Color(0xFF410002)
+    tertiary = Color(0xFFC7B8FF),
+    onTertiary = Color(0xFF2A1C66),
+    tertiaryContainer = Color(0xFF3E3290),
+    onTertiaryContainer = Color(0xFFE6DEFF),
 
-val md_light_background           = Color(0xFFFFF8F5)  // warm cream — not cold white
-val md_light_onBackground         = Color(0xFF201B18)
-val md_light_surface              = Color(0xFFFFF8F5)
-val md_light_onSurface            = Color(0xFF201B18)
-val md_light_surfaceVariant       = Color(0xFFF5DED6)  // warm blush surface
-val md_light_onSurfaceVariant     = Color(0xFF53433D)
-val md_light_surfaceContainer     = Color(0xFFFAEDE6)
-val md_light_surfaceContainerHigh = Color(0xFFF4E7DF)
-val md_light_outline              = Color(0xFF85736D)
-val md_light_outlineVariant       = Color(0xFFD8C2BC)
-val md_light_inverseSurface       = Color(0xFF362F2C)
-val md_light_inverseOnSurface     = Color(0xFFFBEEE8)
-val md_light_inversePrimary       = Color(0xFFFFB68C)  // T80
+    error = Color(0xFFFFB4AB),
+    onError = Color(0xFF690005),
+    errorContainer = Color(0xFF7A1A12),
+    onErrorContainer = Color(0xFFFFDAD6),
 
-// ── Dark scheme ───────────────────────────────────────────────────────────────
-val md_dark_primary               = Color(0xFFFFB68C)  // T80 — warm amber glow
-val md_dark_onPrimary             = Color(0xFF4E2000)
-val md_dark_primaryContainer      = Color(0xFF6F3000)  // T30 — rich burnt amber
-val md_dark_onPrimaryContainer    = Color(0xFFFFDBCA)
+    background = Color(0xFF0C0A09),
+    onBackground = Color(0xFFF6EEE8),
+    surface = Color(0xFF0C0A09),
+    onSurface = Color(0xFFF6EEE8),
+    surfaceVariant = Color(0xFF29241F),
+    onSurfaceVariant = Color(0xFFBFB2A8),
+    surfaceTint = Color(0xFFFFB060),
+    surfaceBright = Color(0xFF2F2924),
+    surfaceDim = Color(0xFF0C0A09),
+    surfaceContainerLowest = Color(0xFF080706),
+    surfaceContainerLow = Color(0xFF131110),
+    surfaceContainer = Color(0xFF181513),
+    surfaceContainerHigh = Color(0xFF201C19),
+    surfaceContainerHighest = Color(0xFF29241F),
+    inverseSurface = Color(0xFFF6EEE8),
+    inverseOnSurface = Color(0xFF221A14),
+    outline = Color(0xFF8C7F76),
+    outlineVariant = Color(0xFF3A332D),
+    scrim = Color(0xFF000000),
+)
 
-val md_dark_secondary             = Color(0xFFE5BDB2)
-val md_dark_onSecondary           = Color(0xFF432B22)
-val md_dark_secondaryContainer    = Color(0xFF5B4238)
-val md_dark_onSecondaryContainer  = Color(0xFFFFDBD1)
+internal val MelukoLightScheme = lightColorScheme(
+    primary = Color(0xFF9A4A00),
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = SunriseAmber,
+    onPrimaryContainer = Color(0xFF2A1100),
+    inversePrimary = Color(0xFFFFB060),
 
-val md_dark_tertiary              = Color(0xFFC6C983)  // warm olive glow
-val md_dark_onTertiary            = Color(0xFF2E3100)
-val md_dark_tertiaryContainer     = Color(0xFF454800)
-val md_dark_onTertiaryContainer   = Color(0xFFE2E59C)
+    secondary = Color(0xFFA33A28),
+    onSecondary = Color(0xFFFFFFFF),
+    secondaryContainer = Color(0xFFFFDAD2),
+    onSecondaryContainer = Color(0xFF3E0A02),
 
-val md_dark_error                 = Color(0xFFFFB4AB)
-val md_dark_onError               = Color(0xFF690005)
-val md_dark_errorContainer        = Color(0xFF93000A)
-val md_dark_onErrorContainer      = Color(0xFFFFDAD6)
+    tertiary = Color(0xFF5A4BC2),
+    onTertiary = Color(0xFFFFFFFF),
+    tertiaryContainer = Color(0xFFE6DEFF),
+    onTertiaryContainer = Color(0xFF160A5E),
 
-val md_dark_background            = Color(0xFF201B18)  // warm dark — not cold black
-val md_dark_onBackground          = Color(0xFFEDE0DA)
-val md_dark_surface               = Color(0xFF201B18)
-val md_dark_onSurface             = Color(0xFFEDE0DA)
-val md_dark_surfaceVariant        = Color(0xFF53433D)
-val md_dark_onSurfaceVariant      = Color(0xFFD8C2BC)
-val md_dark_surfaceContainer      = Color(0xFF2A2320)
-val md_dark_surfaceContainerHigh  = Color(0xFF352D2A)
-val md_dark_outline               = Color(0xFFA08D87)
-val md_dark_outlineVariant        = Color(0xFF53433D)
-val md_dark_inverseSurface        = Color(0xFFEDE0DA)
-val md_dark_inverseOnSurface      = Color(0xFF362F2C)
-val md_dark_inversePrimary        = Color(0xFF8C4300)
+    error = Color(0xFFBA1A1A),
+    onError = Color(0xFFFFFFFF),
+    errorContainer = Color(0xFFFFDAD6),
+    onErrorContainer = Color(0xFF410002),
+
+    background = Color(0xFFFFF8F3),
+    onBackground = Color(0xFF221A14),
+    surface = Color(0xFFFFF8F3),
+    onSurface = Color(0xFF221A14),
+    surfaceVariant = Color(0xFFF3DED0),
+    onSurfaceVariant = Color(0xFF5A4A3F),
+    surfaceTint = Color(0xFF9A4A00),
+    surfaceBright = Color(0xFFFFF8F3),
+    surfaceDim = Color(0xFFEAD7C9),
+    surfaceContainerLowest = Color(0xFFFFFFFF),
+    surfaceContainerLow = Color(0xFFFFF1E8),
+    surfaceContainer = Color(0xFFFCEADE),
+    surfaceContainerHigh = Color(0xFFF6E2D4),
+    surfaceContainerHighest = Color(0xFFF0D9C9),
+    inverseSurface = Color(0xFF382F28),
+    inverseOnSurface = Color(0xFFFFEDE2),
+    outline = Color(0xFF8E7A6D),
+    outlineVariant = Color(0xFFE0CBBD),
+    scrim = Color(0xFF000000),
+)
+
+/** Meluko-specific tokens that Material's ColorScheme has no slot for. */
+@Immutable
+data class MelukoColors(
+    val awake: Color,
+    val sleeping: Color,
+    val missed: Color,
+    /** Sunrise gradient for hero surfaces, darkest → brightest. */
+    val sunrise: List<Color>,
+    /** Soft ambient blobs behind content so glass has something to frost. */
+    val auroraWarm: Color,
+    val auroraCool: Color,
+    val glassTint: Color,
+    val glassBorder: Color,
+    val isDark: Boolean,
+)
+
+internal val DarkMelukoColors = MelukoColors(
+    awake = Color(0xFFFFC46B),
+    sleeping = Color(0xFFB9A7FF),
+    missed = Color(0xFFFF8A7A),
+    sunrise = listOf(Color(0xFFB34700), Color(0xFFFF7A1A), Color(0xFFFFB347)),
+    auroraWarm = Color(0xFFFF8C00),
+    auroraCool = Color(0xFF6B4FD8),
+    glassTint = Color(0xFF1C1815).copy(alpha = 0.62f),
+    glassBorder = Color.White.copy(alpha = 0.10f),
+    isDark = true,
+)
+
+internal val LightMelukoColors = MelukoColors(
+    awake = Color(0xFFB85C00),
+    sleeping = Color(0xFF5A4BC2),
+    missed = Color(0xFFC0392B),
+    sunrise = listOf(Color(0xFFE85D00), Color(0xFFFF8C00), Color(0xFFFFB347)),
+    auroraWarm = Color(0xFFFFB066),
+    auroraCool = Color(0xFFB9A7FF),
+    glassTint = Color(0xFFFFF8F3).copy(alpha = 0.70f),
+    glassBorder = Color.White.copy(alpha = 0.65f),
+    isDark = false,
+)
+
+val LocalMelukoColors = staticCompositionLocalOf { DarkMelukoColors }

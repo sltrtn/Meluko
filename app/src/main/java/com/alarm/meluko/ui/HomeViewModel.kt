@@ -45,6 +45,15 @@ class HomeViewModel @Inject constructor(
     private val _rank = MutableStateFlow(1)
     val rank = _rank.asStateFlow()
 
+    private val _bestStreak = MutableStateFlow(0)
+    val bestStreak = _bestStreak.asStateFlow()
+
+    private val _lastWakeDate = MutableStateFlow<String?>(null)
+    val lastWakeDate = _lastWakeDate.asStateFlow()
+
+    private val _todayStatus = MutableStateFlow(WakeStatus.Sleeping)
+    val todayStatus = _todayStatus.asStateFlow()
+
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
 
@@ -131,6 +140,13 @@ class HomeViewModel @Inject constructor(
                                     _streakDays.value = memberSnap.getLong(FirestoreField.STREAK_DAYS)?.toInt() ?: 0
                                     _totalWakes.value = memberSnap.getLong(FirestoreField.TOTAL_WAKES)?.toInt() ?: 0
                                     _rank.value = memberSnap.getLong(FirestoreField.RANK)?.toInt() ?: 1
+                                    _bestStreak.value = memberSnap.getLong(FirestoreField.BEST_STREAK)?.toInt() ?: 0
+                                    _lastWakeDate.value = memberSnap.getString(FirestoreField.LAST_WAKE_DATE)
+                                    _todayStatus.value = when (memberSnap.getString(FirestoreField.TODAY_STATUS)) {
+                                        FirestoreField.STATUS_AWAKE -> WakeStatus.Awake
+                                        FirestoreField.STATUS_MISSED -> WakeStatus.Missed
+                                        else -> WakeStatus.Sleeping
+                                    }
                                 }
                             }
                     }

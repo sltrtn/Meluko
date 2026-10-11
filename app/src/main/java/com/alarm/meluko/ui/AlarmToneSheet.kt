@@ -102,7 +102,9 @@ fun AlarmToneSheet(
             val list = tones
             if (list == null) {
                 Box(Modifier.fillMaxWidth().height(240.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(modifier = Modifier.size(28.dp))
+                    LoadingIndicator(
+                            modifier = Modifier.size(36.dp)
+                        )
                 }
             } else {
                 LazyColumn(

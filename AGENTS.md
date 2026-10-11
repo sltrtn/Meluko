@@ -64,11 +64,13 @@ Meluko/
 
 - **Seed color:** Sunrise Amber (#FF8C00) — warm, energetic
 - **Fonts:** Outfit (9 weights) for headings/text. See `.ai/design-system.md` for shared type scale.
-- **Dark mode:** True black (#000000) backgrounds
-- **Dynamic colors:** Android 12+ wallpaper-based color support
-- **Cards:** 0dp elevation, 20-24dp rounding
-- **Buttons:** 56dp tall, 20dp rounding
-- **Animations:** Spring-based `pressScale()` on all interactive elements
+- **Brand colors are fixed — NO wallpaper dynamic color.** Amber primary, coral secondary, dusk-violet tertiary; semantic awake/sleeping/missed via `MelukoTheme.colors`. Palette lives in `ui/theme/Color.kt`.
+- **Material 3 Expressive at the core:** `MaterialExpressiveTheme` + `MotionScheme.expressive()`, `MaterialShapes` (Sunny, Cookie, Burst, Clover…) for badges/avatars, `LoadingIndicator` for every loading state (no `CircularProgressIndicator`, no shimmer).
+- **Glass, sparingly:** frosted glass (Haze backdrop blur) only on floating chrome — the bottom nav pill and round top-bar buttons — over a soft `aurora()` background. Never on content cards.
+- **Dark mode:** warm near-black (#0C0A09); light mode warm cream (#FFF8F3)
+- **Shapes:** `MaterialTheme.shapes` — medium 20dp, large 28dp (cards/buttons), extraLarge 36dp (hero cards)
+- **Animations:** Spring-based `pressScale()` on interactive elements, `staggeredEnter(index)` cascades, `rememberCountUp` for stats
+- **Shared building blocks:** `ui/components/MelukoComponents.kt` (MelukoCard, StatTile, SectionHeader, ShapeIconBadge, RankBadge, StatusLabel, MelukoLoading, glass)
 - **Bottom sheets:** No drag handle, 32dp top rounding
 - **Typography:** Uppercase section headers with letter spacing
 - **Splash:** Scatter-letter animation for "MELUKO"

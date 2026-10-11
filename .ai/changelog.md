@@ -4,6 +4,31 @@
 
 ---
 
+## 2026-10-11 — Expressive UI Revamp
+
+**Design system:**
+- Dropped wallpaper dynamic color for a fixed brand palette (Sunrise Amber / Coral / Dusk Violet), warm near-black dark mode and warm cream light mode, plus semantic awake/sleeping/missed colors (`MelukoTheme.colors`).
+- `MaterialExpressiveTheme` with `MotionScheme.expressive()` and an expressive shape scale (20/28/36dp).
+- material3 bumped to `1.5.0-beta01` for `LoadingIndicator`, `MaterialShapes`; compileSdk 36 → 37 (targetSdk unchanged at 36). Haze `1.7.3` added for backdrop blur.
+- New `ui/components/MelukoComponents.kt`: glass modifier, aurora background, SectionHeader, ShapeIconBadge, RankBadge, StatTile (count-up), MelukoCard, StatusLabel, MelukoLoading, staggeredEnter.
+- Every spinner/shimmer replaced by the expressive morphing `LoadingIndicator`; `ShimmerEffect.kt` removed.
+
+**Screens (same structure, restyled):**
+- Floating frosted-glass nav pill with a sliding amber indicator; pager pages recede in depth while swiping.
+- Home: sunrise hero card with a turning expressive sun, tribe card with awake meter, shaped stat tiles, and a "This week" strip (replaces the duplicate Consistency card).
+- Social: dawn-to-sunrise morning board with an animated awake ring; medal-shaped rank badges; colored status labels.
+- Tribe Detail: glass round buttons, identity header, alarm + tap-to-copy invite tiles, violet proposal card, grouped manage actions.
+- Account: profile hero with cookie-shaped avatar, non-clipping stat tiles, grouped settings with shape icons.
+- Login: aurora background and a turning sun logo.
+
+**Fixed:**
+- **Time wheel offset (propose sheet AND onboarding first alarm):** the centred row and the value sent were each off by 2 rows, so what users picked wasn't what was saved. The propose sheet also now opens on the tribe's current alarm.
+- **Sign out / delete account didn't navigate to Login:** each screen had its own AuthViewModel; it now follows Firebase's auth state.
+- Social "missed" count counted everyone asleep as missed; "Still sleeping" listed yourself.
+- Account stat tile labels clipped; dead "Notifications" toggle removed (no push backend); version read from BuildConfig; plurals ("1 member"); Tribe Detail alarm shown in 12h.
+
+---
+
 ## 2026-10-11 — Alarm Screen + Tone Overhaul
 
 **Fixed:**

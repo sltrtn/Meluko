@@ -106,33 +106,41 @@ fun Modifier.celebrateBurst(trigger: Boolean): Modifier = composed {
 }
 
 @Composable
-fun ScreenHeader(title: String) {
-    val today = remember {
-        java.text.SimpleDateFormat("EEEE, MMMM d", java.util.Locale.getDefault())
-            .format(java.util.Date())
+fun ScreenHeader(
+    title: String,
+    modifier: Modifier = Modifier,
+    eyebrow: String? = null,
+    trailing: (@Composable () -> Unit)? = null,
+) {
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
+    val today = remember(locale) {
+        java.text.SimpleDateFormat("EEEE, MMMM d", locale).format(java.util.Date())
     }
-    Column(
-        modifier = Modifier
+    androidx.compose.foundation.layout.Row(
+        modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(start = 24.dp, end = 20.dp, top = 20.dp, bottom = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = title,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Black,
-            fontFamily = DefaultFontFamily,
-            letterSpacing = 3.sp,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Spacer(Modifier.height(3.dp))
-        Text(
-            text = today,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            fontFamily = DefaultFontFamily,
-            letterSpacing = 0.3.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = (eyebrow ?: today).uppercase(),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = DefaultFontFamily,
+                letterSpacing = 1.4.sp,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = title,
+                fontSize = 32.sp,
+                lineHeight = 36.sp,
+                fontWeight = FontWeight.Black,
+                fontFamily = DefaultFontFamily,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        trailing?.invoke()
     }
 }
