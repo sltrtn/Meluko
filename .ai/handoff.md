@@ -1,7 +1,7 @@
 # Handoff — Session End
 
 > **Last updated:** 2026-10-11
-> **Last action:** Expressive UI revamp (fixed brand palette, M3 Expressive shapes/loaders, sparing glass) + wheel-offset and sign-out bug fixes (see changelog 2026-10-11)
+> **Last action:** Firestore rules lockdown + tribe/proposal logic fixes (deployed, emulator-tested); Cloudflare plan in .ai/cloudflare-plan.md. Remaining audit items: alarm engine (see changelog 2026-10-11).
 
 ---
 

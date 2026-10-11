@@ -4,6 +4,30 @@
 
 ---
 
+## 2026-10-11 — Rules Lockdown + Tribe/Proposal Logic Fixes
+
+Driven by a 3-part logic audit (tribe/admin, proposal/veto, alarm/streak).
+
+**Fixed (critical, verified live before the fix):**
+- Joining by invite code was impossible in production (join transaction read a member doc only members may read).
+- All tribes + invite codes were listable by any signed-in user (incl. anonymous via the APK's API key); members could self-promote to admin, edit their own stats/vetoes, rewrite the tribe doc (alarm time, memberCount), force-accept proposals, back-date proposals.
+
+**New model (firestore.rules, deployed; 40 emulator tests in `firestore-tests/`):**
+- `invites/{CODE}` → `{tribeId}`: get-by-code only, unique by construction; tribes not listable.
+- One active proposal per tribe (`tribes.activeProposalId`); alarm changes only with acceptance after server `createdAt` + 2h; vetoes only in-window, never your own, max 2; solo admin may set time directly.
+- Members write only their own status/stat fields within limits; `role` changes only by an admin (promote others).
+- `memberCount` must match real joins/leaves; the last member deletes the tribe.
+
+**Client:** `data/TribeActions.kt` (create/join/leave with admin succession/remove/make-admin/delete/legacy invite backfill); proposal engine rewritten (server timestamps, atomic veto, timer auto-accept also from Home, "Proposal open" state); join/create entry from Home & Social; onboarding sets a solo tribe's time instead of proposing; sign-in no longer wipes profiles; sign-out cancels device alarms + clears cache; second same-day dismiss marks you awake; stored dates use Locale.US; self-heal ignores cached "tribe missing".
+
+**Heads-up:**
+- Tribes created before today have no invite doc. They become joinable once their admin opens Tribe Detail on this build (auto-backfill).
+- Older app builds (the v1.0 APK) can no longer create/join/propose/veto under the new rules.
+
+**Next:** see `.ai/cloudflare-plan.md` (free server jobs: auto-accept, missed detection, push) and the alarm-engine fixes from the audit (foreground-service tone, missed-check timing, reschedule from current tribe time).
+
+---
+
 ## 2026-10-11 — Expressive UI Revamp
 
 **Design system:**
