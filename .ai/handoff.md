@@ -1,7 +1,7 @@
 # Handoff — Session End
 
-> **Last updated:** 2026-10-11
-> **Last action:** Published **v2.0 (Beta)** on GitHub (tag v2.0 @ c081750, signed release APK; Google sign-in verified on a real device with the registered release SHA-1/256). v1.0 release notes now say it is outdated. Next: v2.1 alarm engine (see changelog 2026-10-11).
+> **Last updated:** 2026-10-29
+> **Last action:** Fixed the "alarm doesn't stop when nobody wakes" logic gap — `AlarmActivity` now stops ringing when the missed-check marks the user missed (build + lint + tests all green this session).
 
 ---
 
@@ -27,6 +27,18 @@ The entire 2026-08-27 production audit session's work (security rules, race-cond
 6. **Client-side self-heal fallback** — because Cloud Functions aren't deployed, `SocialViewModel` now detects `PERMISSION_DENIED` on the members listener (removed from tribe) or a non-existent tribe doc (tribe deleted), and clears its own `primaryTribeId` client-side instead of getting stuck in an error loop. Replace this with the real `onMemberRemoved` trigger once Cloud Functions are deployed (it's more robust — handles the case where the user never reopens the app).
 7. **Fun-factor UI pass** (same layout and colors, per explicit instruction): replaced the blank `Text(emoji, ...)` placeholders left over from the earlier no-emoji pass (Home stat cards, Account stat cards, Consistency metrics) with tinted icon badges (flame/sun/trophy); added a one-shot springy "celebration pulse" (`celebrateBurst`/`rememberIncreaseTrigger` in `ExpressiveUtils`) on the streak stat when it increases; warmed up two of the flattest empty-state copy lines in SocialScreen.
 8. **`AuthConstants.WEB_CLIENT_ID`** — deduplicated the Google OAuth web client ID out of `AuthViewModel` so `AccountViewModel` can reuse it for re-auth.
+9. **Alarm "missed → stop ringing" logic fix** — user asked: "if everyone doesn't wake up, the alarm doesn't turn off for everyone — check logic". Verdict: **there was a real bug, now fixed.**
+
+**The check (as it was):** alarm stopping is per-member by design (each member's device runs its own alarm at their own `user_alarms.followedAlarmTime`; tribe sees statuses via Firestore). On wake, the member dismisses → `AlarmScreen.onWake` → `stopAlert()` + Firestore status→awake + `finish()`. If they didn't wake, `MissedAlarmReceiver` (scheduled +10 min after fire) wrote status→missed + streak→0 — **but never stopped the ringing alarm**; the still-running `AlarmActivity` kept the ringtone/vibration going until manual dismissal.
+
+**The fix:** `AlarmActivity` now registers a Firestore snapshot listener on its own tribe `members/{uid}` doc (inside the existing tribe-snapshot load coroutine). When status flips to `missed`, it calls `stopAlert()` and `finish()`; `onDestroy()` then cancels the notification, cancels `MissedAlarmReceiver`, and clears `KEEP_SCREEN_ON`. Listener is removed in `onDestroy()`.
+
+**Build status:** `./gradlew assembleDebug` ✅, `./gradlew test` ✅, `./gradlew lintDebug` ✅ (all re-run after this change).
+
+10. **Tribe-wide alarm hold — the actual product-intent fix** — user clarified: *"the point of the app is that unless the whole tribe wakes, none's alarms stop."* Verdict: **not implemented before — now fixed.**
+    - Before: alarm stop was strictly per-member (wake→stop, missed→stop). So a member who woke early had their alarm stop while others were still asleep — contradicting the product promise ("One alarm rules the entire tribe — everyone wakes together", "Sleep together. Wake up together.", README tagline, interview lines).
+    - Fix: `AlarmActivity` now listens to the tribe `members` **collection** (instead of just the self doc). When self status is `awake` and not all members are `awake`/`missed` → **hold** (`startTone()` + `startVibration()` restart the ringing). When all members are `awake`/`missed` → stop + finish. When self is `missed` → stop + finish (missed-stop, now tribe-aware).
+    - Consequence: an already-woke member's alarm keeps ringing until the whole tribe wakes (or settles) — exactly the intended "unless the whole tribe wakes, none's alarms stop."
 
 ---
 

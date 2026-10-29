@@ -31,6 +31,7 @@ import com.alarm.meluko.ui.WakeCelebration
 import com.alarm.meluko.ui.theme.MelukoTheme
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -64,6 +65,9 @@ class AlarmActivity : ComponentActivity() {
 
     private var tribeSnapshot by mutableStateOf<AlarmTribeSnapshot?>(null)
     private var celebration by mutableStateOf<WakeCelebration?>(null)
+
+    private var memberAlarmRegistration: ListenerRegistration? = null
+    private var tribeSettledNow: Boolean? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -179,6 +183,43 @@ class AlarmActivity : ComponentActivity() {
                         (it.getString(FirestoreField.DISPLAY_NAME) ?: "?") to it.getString(FirestoreField.PHOTO_URL)
                     }
                 )
+
+                // Missed-stop + tribe-wide hold: keep ringing until the whole tribe is awake/settled.
+                memberAlarmRegistration?.remove()
+                memberAlarmRegistration = firebaseFirestore.collection(FirestoreCollection.TRIBES)
+                    .document(tribeId)
+                    .collection(FirestoreCollection.MEMBERS)
+                    .addSnapshotListener { snap, error ->
+                        if (error != null) {
+                            Log.w("AlarmActivity", "Member listener error for missed-stop", error)
+                            return@addSnapshotListener
+                        }
+                        val docs = snap?.documents ?: return@addSnapshotListener
+                        val status = docs.firstOrNull { it.id == uid }?.getString(FirestoreField.TODAY_STATUS)
+                        if (status == FirestoreField.STATUS_MISSED) {
+                            Log.d("AlarmActivity", "User marked missed while ringing — stopping alarm")
+                            stopAlert()
+                            finish()
+                            return@addSnapshotListener
+                        }
+                        if (status == FirestoreField.STATUS_AWAKE) {
+                            val settled = docs.all { doc ->
+                                val s = doc.getString(FirestoreField.TODAY_STATUS)
+                                s == FirestoreField.STATUS_AWAKE || s == FirestoreField.STATUS_MISSED
+                            }
+                            tribeSettledNow = settled
+                            if (settled) {
+                                Log.d("AlarmActivity", "Tribe settled — stopping alarm")
+                                stopAlert()
+                                finish()
+                            } else {
+                                // Tribe not fully awake yet — hold the alarm (group wake pending).
+                                Log.d("AlarmActivity", "Tribe not settled — holding alarm")
+                                startTone()
+                                startVibration()
+                            }
+                        }
+                    }
             } catch (e: Exception) {
                 Log.w("AlarmActivity", "Tribe snapshot unavailable", e)
             }
@@ -196,7 +237,13 @@ class AlarmActivity : ComponentActivity() {
             if (streak != null) celebration = WakeCelebration(streakDays = streak)
             minDisplay.await()
             if (streak != null) delay(600) // let the streak number land
-            finish()
+            // Tribe-wide hold: keep the alarm ringing until the whole tribe is awake/settled.
+            if (tribeSettledNow == true) {
+                finish()
+            } else {
+                startTone()
+                startVibration()
+            }
         }
     }
 
@@ -259,6 +306,7 @@ class AlarmActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         stopAlert()
+        memberAlarmRegistration?.remove()
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.cancel(AlarmReceiver.NOTIFICATION_ID)
         MissedAlarmReceiver.cancel(this)
