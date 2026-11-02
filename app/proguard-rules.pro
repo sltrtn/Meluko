@@ -56,3 +56,28 @@
 
 # Firebase discovers its components by reflection; keep their no-arg constructors.
 -keep class * implements com.google.firebase.components.ComponentRegistrar { <init>(); }
+
+# ── Haze (backdrop blur for glass surfaces) ─────────────────────────────────
+# Haze uses graphics/RenderEffect classes discovered via reflection on API 31+.
+-keep class dev.chrisbanes.haze.** { *; }
+-dontwarn dev.chrisbanes.haze.**
+
+# ── Material3 Expressive (MaterialShapes, LoadingIndicator, MotionScheme) ───
+# MaterialShapes polygons are resolved by name/ordinal; keep shape definitions.
+-keep class androidx.compose.material3.** { *; }
+-dontwarn androidx.compose.material3.**
+
+# ── androidx.graphics.shapes (RoundedPolygon used by MaterialShapes) ────────
+-keep class androidx.graphics.shapes.** { *; }
+-dontwarn androidx.graphics.shapes.**
+
+# ── Google Identity / Credential Manager ───────────────────────────────────
+# Reflection-based credential parsing must survive R8.
+-keep class com.google.android.libraries.identity.googleid.** { *; }
+-dontwarn com.google.android.libraries.identity.googleid.**
+-keep class androidx.credentials.** { *; }
+-dontwarn androidx.credentials.**
+
+# ── Coil image loading (profile/tribe photos) ──────────────────────────────
+-keep class coil3.** { *; }
+-dontwarn coil3.**

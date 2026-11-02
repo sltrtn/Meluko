@@ -51,8 +51,8 @@
 | **C4** `resetOwnStatusForNewDay()` runs on every fire | `AlarmReceiver.kt` line 91-103 | Read status first, only reset if not awake | ✅ Done |
 | **C5** Missed-check race | `MissedAlarmReceiver.kt` line 50-66 | Use **transaction** for atomic read+update | ✅ Done |
 
-### B4: ProGuard Rules for Release Build — **🔄 NEXT**
-Create `app/proguard-rules.pro` with rules for Hilt, Firebase, Coil, Haze, Material3 Expressive.
+### B4: ProGuard Rules for Release Build — **✅ DONE**
+`app/proguard-rules.pro` now covers Hilt, Firebase, Coil (v2+3), Haze, Material3 Expressive, androidx.graphics.shapes, Credential Manager, Google Identity. Verified by successful `./gradlew bundleRelease` (R8 minification + resource shrinking).
 
 ### B5: Firebase Key Rotation & Blaze Upgrade
 - Rotate API key + OAuth client in Firebase Console
@@ -145,7 +145,7 @@ git push origin master
 | P0 | `app/src/main/java/com/alarm/meluko/alarm/AlarmActivity.kt` | Fix C1, C2, C3 | ✅ Done |
 | P0 | `app/src/main/java/com/alarm/meluko/alarm/AlarmReceiver.kt` | Fix C4 | ✅ Done |
 | P0 | `app/src/main/java/com/alarm/meluko/alarm/MissedAlarmReceiver.kt` | Fix C5 | ✅ Done |
-| P0 | `app/proguard-rules.pro` | **Create** — Release ProGuard rules | 🔄 Next |
+| P0 | `app/proguard-rules.pro` | **Create** — Release ProGuard rules | ✅ Done |
 | P0 | `functions/index.js` | Deploy to Firebase (Blaze) | ⏳ |
 | P1 | `app/src/main/java/com/alarm/meluko/alarm/BootReceiver.kt` | Fix ghost alarms | ⏳ |
 | P1 | `app/src/main/java/com/alarm/meluko/alarm/AlarmScheduler.kt` | Permission fallback UX | ⏳ |

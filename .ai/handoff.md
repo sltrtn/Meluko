@@ -1,7 +1,7 @@
 # Handoff — Session End
 
 > **Last updated:** 2026-11-02
-> **Last action:** Fixed all P0 alarm race conditions (C1–C5) — `AlarmActivity` now holds alarm for tribe, no restart after wake, missed-check uses transaction; `AlarmReceiver` only resets status if not awake; `MissedAlarmReceiver` uses transaction. All builds green. Created `PROMPT_V1_RELEASE.md` master prompt for v1.0 track.
+> **Last action:** Ran `PROMPT_V1_RELEASE.md` loop. Fixed P0 alarm race conditions C1–C5 + B4 (ProGuard rules: added Haze, Material3 Expressive, androidx.graphics.shapes, Credential Manager, Google Identity, Coil 3 keeps). `bundleRelease` + `assembleRelease` + `lintDebug` + `test` all BUILD SUCCESSFUL. Next: B5 (Firebase key rotation + Blaze + Cloud Functions deploy — manual steps).
 
 ---
 
