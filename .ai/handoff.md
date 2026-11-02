@@ -1,7 +1,7 @@
 # Handoff — Session End
 
 > **Last updated:** 2026-11-03
-> **Last action:** Fixed P1 BootReceiver ghost alarms. It now verifies the authenticated user's current tribe membership from the server before scheduling; it skips cached scheduling when auth or membership cannot be verified. `assembleDebug`, `test`, and `lintDebug` are BUILD SUCCESSFUL. Next: P1 ProposalViewModel clock drift.
+> **Last action:** Fixed P1 ProposalViewModel clock drift. Proposal acceptance now relies on the Firestore security rule's server-time expiry check (`request.time >= createdAt + 2h`), rather than a device `Date()` gate. `assembleDebug`, `test`, and `lintDebug` are BUILD SUCCESSFUL. Next: P1 HomeViewModel duplicate alarm scheduling.
 
 ---
 
@@ -53,6 +53,8 @@ The entire 2026-08-27 production audit session's work (security rules, race-cond
 13. **B4 ProGuard rules completed** — `app/proguard-rules.pro` now also keeps Haze (`dev.chrisbanes.haze.**`), Material3 Expressive (`androidx.compose.material3.**`), `androidx.graphics.shapes.**` (RoundedPolygon), Credential Manager + Google Identity libraries, and Coil 3. Verified by building a real signed `bundleRelease` (R8 + shrinkResources) and `assembleRelease` APK — both BUILD SUCCESSFUL. Outputs: `app/build/outputs/bundle/release/app-release.aab`, `app/build/outputs/apk/release/app-release.apk`.
 
 14. **BootReceiver ghost alarms fixed (P1)** — on reboot, the receiver no longer trusts a stale `user_alarms` document or `AlarmCache` alone. It reads the user's alarm document and their `tribes/{tribeId}/members/{uid}` document from `Source.SERVER`; only an existing member document permits rescheduling. If auth restoration, Firestore, or membership verification fails, no alarm is scheduled, preventing removed/left members from receiving ghost alarms after a reboot. `./gradlew assembleDebug test lintDebug` is green.
+
+15. **ProposalViewModel clock drift fixed (P1)** — removed the device-clock `Date().before(expires)` guard from proposal acceptance. The existing Firestore rules already compare `request.time` with the server-stamped `createdAt + 2h`; the ViewModel's 20-second retry loop now lets that authoritative server-time check accept a proposal, so a fast/slow device cannot shorten or extend its veto window. `./gradlew assembleDebug test lintDebug` is green.
 
 ---
 

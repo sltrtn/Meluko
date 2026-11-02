@@ -40,8 +40,9 @@ data class AlarmProposal(
 /**
  * Proposal lifecycle. A tribe has at most one live proposal, named by
  * tribes/{id}.activeProposalId (firestore.rules enforces this). Any member's
- * app finalizes it once the 2h window passes; the window is measured from the
- * server-stamped createdAt, so device clocks can't shorten it.
+ * app finalizes it once the 2h window passes. Firestore rules compare the
+ * server's request time to the server-stamped createdAt, so device clocks
+ * can't shorten it.
  */
 @HiltViewModel
 class ProposalViewModel @Inject constructor(
@@ -139,8 +140,7 @@ class ProposalViewModel @Inject constructor(
 
     private fun maybeAccept(tribeId: String) {
         val proposal = _activeProposal.value ?: return
-        val expires = proposal.expiresAt ?: return
-        if (accepting || Date().before(expires) || proposal.proposedTime.isBlank()) return
+        if (accepting || proposal.proposedTime.isBlank()) return
         accepting = true
         viewModelScope.launch {
             try {
@@ -158,8 +158,8 @@ class ProposalViewModel @Inject constructor(
                 }.commit().await()
                 Log.d("ProposalVM", "Accepted proposal ${proposal.id} → ${proposal.proposedTime}")
             } catch (e: FirebaseFirestoreException) {
-                // Usually: another member got there first, or our clock runs ahead of the
-                // server's. The timer simply tries again; nothing to show the user.
+                // Firestore rules use request.time to reject attempts before the server-side
+                // expiry. The timer retries until the proposal can be finalized.
                 Log.d("ProposalVM", "Accept not possible yet: ${e.code}")
             } catch (e: Exception) {
                 Log.w("ProposalVM", "Accept failed", e)
