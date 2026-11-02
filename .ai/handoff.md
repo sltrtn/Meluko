@@ -1,7 +1,7 @@
 # Handoff — Session End
 
 > **Last updated:** 2026-11-03
-> **Last action:** Fixed P1 ProposalViewModel clock drift. Proposal acceptance now relies on the Firestore security rule's server-time expiry check (`request.time >= createdAt + 2h`), rather than a device `Date()` gate. `assembleDebug`, `test`, and `lintDebug` are BUILD SUCCESSFUL. Next: P1 HomeViewModel duplicate alarm scheduling.
+> **Last action:** Fixed P1 HomeViewModel duplicate alarm scheduling. Every changed alarm time now explicitly cancels the previous pending alarm before scheduling its replacement. `assembleDebug`, `test`, and `lintDebug` are BUILD SUCCESSFUL. Next: P1 exact-alarm permission UX.
 
 ---
 
@@ -55,6 +55,8 @@ The entire 2026-08-27 production audit session's work (security rules, race-cond
 14. **BootReceiver ghost alarms fixed (P1)** — on reboot, the receiver no longer trusts a stale `user_alarms` document or `AlarmCache` alone. It reads the user's alarm document and their `tribes/{tribeId}/members/{uid}` document from `Source.SERVER`; only an existing member document permits rescheduling. If auth restoration, Firestore, or membership verification fails, no alarm is scheduled, preventing removed/left members from receiving ghost alarms after a reboot. `./gradlew assembleDebug test lintDebug` is green.
 
 15. **ProposalViewModel clock drift fixed (P1)** — removed the device-clock `Date().before(expires)` guard from proposal acceptance. The existing Firestore rules already compare `request.time` with the server-stamped `createdAt + 2h`; the ViewModel's 20-second retry loop now lets that authoritative server-time check accept a proposal, so a fast/slow device cannot shorten or extend its veto window. `./gradlew assembleDebug test lintDebug` is green.
+
+16. **HomeViewModel duplicate scheduling fixed (P1)** — `scheduleAlarm()` now calls `AlarmScheduler.cancel()` before scheduling the changed time. This makes replacement explicit rather than relying on PendingIntent replacement semantics. `./gradlew assembleDebug test lintDebug` is green.
 
 ---
 

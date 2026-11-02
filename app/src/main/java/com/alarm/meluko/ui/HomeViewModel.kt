@@ -171,7 +171,10 @@ class HomeViewModel @Inject constructor(
             if (parts.size != 2) return
             val hour = parts[0].toIntOrNull() ?: return
             val minute = parts[1].toIntOrNull() ?: return
-            AlarmScheduler(context).schedule(hour, minute)
+            AlarmScheduler(context).apply {
+                cancel()
+                schedule(hour, minute)
+            }
         } catch (e: Exception) {
             Log.w("HomeVM", "Failed to schedule alarm", e)
         }

@@ -35,7 +35,7 @@
 | Tests | 30% | Only 2 unit tests, no UI tests |
 
 **Last commit:** `3f4f96e` — "v1.0: fix P0 alarm race conditions C1–C5; add PROMPT_V1_RELEASE.md"
-**This session (2026-11-03):** Fixed the BootReceiver ghost-alarm path (server-verified tribe membership before rescheduling) and ProposalViewModel clock drift (Firestore rules now make the server-time expiry decision). `assembleDebug`, `test`, and `lintDebug` are green.
+**This session (2026-11-03):** Fixed BootReceiver ghost alarms (server-verified tribe membership), ProposalViewModel clock drift (server-time expiry), and HomeViewModel rescheduling (explicitly cancel old alarm first). `assembleDebug`, `test`, and `lintDebug` are green.
 
 ---
 
@@ -71,7 +71,7 @@
 | Fix `MissedAlarmReceiver` race | `MissedAlarmReceiver.kt` | Use transaction for read+update | ✅ Done (C5) |
 | Fix `BootReceiver` ghost alarms | `BootReceiver.kt` | Verify tribe membership before scheduling | ✅ Done |
 | Fix `ProposalViewModel` clock drift | `ProposalViewModel.kt` | Use server time for expiry check, not device `Date()` | ✅ Done |
-| Fix `HomeViewModel` duplicate alarms | `HomeViewModel.kt` | Cancel old alarm before scheduling new | ⏳ |
+| Fix `HomeViewModel` duplicate alarms | `HomeViewModel.kt` | Cancel old alarm before scheduling new | ✅ Done |
 | Fix `AlarmScheduler` fallback | `AlarmScheduler.kt` | Show banner if exact alarm permission denied (already in HomeScreen) | ⏳ |
 
 ---
