@@ -43,32 +43,35 @@ class MissedAlarmReceiver : BroadcastReceiver() {
             return
         }
 
-        val memberRef = FirebaseFirestore.getInstance()
-            .collection(FirestoreCollection.TRIBES).document(tribeId)
+        val db = FirebaseFirestore.getInstance()
+        val memberRef = db.collection(FirestoreCollection.TRIBES).document(tribeId)
             .collection(FirestoreCollection.MEMBERS).document(uid)
 
-        memberRef.get()
-            .addOnSuccessListener { doc ->
-                val status = doc.getString(FirestoreField.TODAY_STATUS) ?: FirestoreField.STATUS_SLEEPING
-                if (status == FirestoreField.STATUS_SLEEPING) {
-                    memberRef.update(
-                        mapOf(
-                            FirestoreField.TODAY_STATUS to FirestoreField.STATUS_MISSED,
-                            FirestoreField.STREAK_DAYS to 0
-                        )
-                    ).addOnCompleteListener {
-                        Log.d(TAG, "Marked user as missed")
-                        pendingResult.finish()
-                    }
-                } else {
-                    Log.d(TAG, "User already $status, no missed update needed")
-                    pendingResult.finish()
-                }
+        // Use a transaction to atomically check status and mark missed.
+        // Prevents race where user wakes between read and update.
+        db.runTransaction { transaction ->
+            val memberDoc = transaction.get(memberRef)
+            val status = memberDoc.getString(FirestoreField.TODAY_STATUS) ?: FirestoreField.STATUS_SLEEPING
+            if (status == FirestoreField.STATUS_SLEEPING) {
+                transaction.update(memberRef, mapOf(
+                    FirestoreField.TODAY_STATUS to FirestoreField.STATUS_MISSED,
+                    FirestoreField.STREAK_DAYS to 0
+                ))
+                true
+            } else {
+                false
             }
-            .addOnFailureListener {
-                Log.w(TAG, "Failed to read member doc for missed check", it)
-                pendingResult.finish()
+        }.addOnSuccessListener { wasMarked ->
+            if (wasMarked) {
+                Log.d(TAG, "Marked user as missed (transaction)")
+            } else {
+                Log.d(TAG, "User already awake/awakened — no missed update needed")
             }
+            pendingResult.finish()
+        }.addOnFailureListener {
+            Log.w(TAG, "Missed-check transaction failed", it)
+            pendingResult.finish()
+        }
     }
 
     companion object {

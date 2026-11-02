@@ -68,6 +68,7 @@ class AlarmActivity : ComponentActivity() {
 
     private var memberAlarmRegistration: ListenerRegistration? = null
     private var tribeSettledNow: Boolean? = null
+    private var isRinging = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -119,6 +120,8 @@ class AlarmActivity : ComponentActivity() {
     }
 
     private fun startTone() {
+        if (isRinging) return
+        isRinging = true
         tonePlayer = AlarmTonePlayer(this)
         val toneUri = AlarmCache.getAlarmToneUri(this)?.let(Uri::parse)
         tonePlayer.play(toneUri, looping = true, initialVolume = 0.1f)
@@ -150,6 +153,7 @@ class AlarmActivity : ComponentActivity() {
     }
 
     private fun stopAlert() {
+        isRinging = false
         crescendoJob?.cancel()
         tonePlayer.stop()
         vibrator?.cancel()
@@ -195,7 +199,8 @@ class AlarmActivity : ComponentActivity() {
                             return@addSnapshotListener
                         }
                         val docs = snap?.documents ?: return@addSnapshotListener
-                        val status = docs.firstOrNull { it.id == uid }?.getString(FirestoreField.TODAY_STATUS)
+                        val currentUid = firebaseAuth.currentUser?.uid ?: return@addSnapshotListener
+                        val status = docs.firstOrNull { it.id == currentUid }?.getString(FirestoreField.TODAY_STATUS)
                         if (status == FirestoreField.STATUS_MISSED) {
                             Log.d("AlarmActivity", "User marked missed while ringing — stopping alarm")
                             stopAlert()
@@ -212,12 +217,8 @@ class AlarmActivity : ComponentActivity() {
                                 Log.d("AlarmActivity", "Tribe settled — stopping alarm")
                                 stopAlert()
                                 finish()
-                            } else {
-                                // Tribe not fully awake yet — hold the alarm (group wake pending).
-                                Log.d("AlarmActivity", "Tribe not settled — holding alarm")
-                                startTone()
-                                startVibration()
                             }
+                            // If not settled, do NOT restart tone/vibration — hold is implicit (alarm keeps ringing)
                         }
                     }
             } catch (e: Exception) {
@@ -228,22 +229,19 @@ class AlarmActivity : ComponentActivity() {
 
     private fun handleWake() {
         if (celebration != null) return
-        stopAlert()
+        // DO NOT stopAlert() here — alarm keeps ringing until tribe settles.
+        // Just record wake and show celebration overlay.
         celebration = WakeCelebration(streakDays = null)
 
         lifecycleScope.launch {
-            val minDisplay = async { delay(CELEBRATION_MS) }
             val streak = withTimeoutOrNull(4_000L) { recordWake() }
             if (streak != null) celebration = WakeCelebration(streakDays = streak)
-            minDisplay.await()
+            // Celebration displays for minimum time, then we wait for tribe to settle.
+            // The listener in loadTribeSnapshot() will call stopAlert() + finish() when tribe settles.
+            delay(CELEBRATION_MS)
             if (streak != null) delay(600) // let the streak number land
-            // Tribe-wide hold: keep the alarm ringing until the whole tribe is awake/settled.
-            if (tribeSettledNow == true) {
-                finish()
-            } else {
-                startTone()
-                startVibration()
-            }
+            // If tribe already settled (tribeSettledNow == true), listener already finished us.
+            // If not, we just wait here until listener triggers finish().
         }
     }
 

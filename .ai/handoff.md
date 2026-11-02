@@ -1,7 +1,7 @@
 # Handoff — Session End
 
-> **Last updated:** 2026-10-29
-> **Last action:** Fixed the "alarm doesn't stop when nobody wakes" logic gap — `AlarmActivity` now stops ringing when the missed-check marks the user missed (build + lint + tests all green this session).
+> **Last updated:** 2026-11-02
+> **Last action:** Fixed all P0 alarm race conditions (C1–C5) — `AlarmActivity` now holds alarm for tribe, no restart after wake, missed-check uses transaction; `AlarmReceiver` only resets status if not awake; `MissedAlarmReceiver` uses transaction. All builds green. Created `PROMPT_V1_RELEASE.md` master prompt for v1.0 track.
 
 ---
 
@@ -39,6 +39,16 @@ The entire 2026-08-27 production audit session's work (security rules, race-cond
     - Before: alarm stop was strictly per-member (wake→stop, missed→stop). So a member who woke early had their alarm stop while others were still asleep — contradicting the product promise ("One alarm rules the entire tribe — everyone wakes together", "Sleep together. Wake up together.", README tagline, interview lines).
     - Fix: `AlarmActivity` now listens to the tribe `members` **collection** (instead of just the self doc). When self status is `awake` and not all members are `awake`/`missed` → **hold** (`startTone()` + `startVibration()` restart the ringing). When all members are `awake`/`missed` → stop + finish. When self is `missed` → stop + finish (missed-stop, now tribe-aware).
     - Consequence: an already-woke member's alarm keeps ringing until the whole tribe wakes (or settles) — exactly the intended "unless the whole tribe wakes, none's alarms stop."
+
+11. **P0 Alarm Race Conditions Fixed (C1–C5)** — comprehensive fix for all critical alarm bugs:
+    - **C1 (Stale UID)**: `AlarmActivity.loadTribeSnapshot()` listener now reads `firebaseAuth.currentUser?.uid` inside the callback instead of capturing outer `uid`.
+    - **C2 (Overlapping Rings)**: Added `isRinging` guard in `startTone()`/`startVibration()` — prevents multiple concurrent rings when tribe members wake sequentially.
+    - **C3 (Restart After Wake)**: Removed the `else { startTone(); startVibration() }` block in `handleWake()`. Alarm now stops ONLY when tribe settles (listener handles this). User wake shows celebration overlay while alarm continues ringing in background.
+    - **C4 (Unconditional Status Reset)**: `AlarmReceiver.resetOwnStatusForNewDay()` now reads current status first; only resets to sleeping if status ≠ awake. Prevents wiping today's wake on alarm re-fire/time-change.
+    - **C5 (Missed-Check Race)**: `MissedAlarmReceiver.onReceive()` now uses a Firestore **transaction** to atomically check status and mark missed. Eliminates race where user wakes between read and update.
+    - **Build status:** `./gradlew assembleDebug` ✅, `./gradlew test` ✅, `./gradlew lintDebug` ✅ (all green).
+
+12. **`PROMPT_V1_RELEASE.md` Created** — master prompt placed in project root with complete v1.0 roadmap, current state, P0–P3 breakdown, execution loop, and session checklist. Designed to be run at start of every session to fast-forward development.
 
 ---
 

@@ -85,6 +85,7 @@ class AlarmReceiver : BroadcastReceiver() {
 
     /**
      * Reset the current user's todayStatus/todayWakeTime for the new day.
+     * Only resets if the user hasn't already woken today (status != awake).
      * Each device only updates its own member doc; Firestore listeners sync
      * the change to every tribe member's screen.
      */
@@ -92,20 +93,31 @@ class AlarmReceiver : BroadcastReceiver() {
         val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
         val tribeId = AlarmCache.getTribeId(context) ?: return
 
-        FirebaseFirestore.getInstance()
+        val memberRef = FirebaseFirestore.getInstance()
             .collection(FirestoreCollection.TRIBES).document(tribeId)
             .collection(FirestoreCollection.MEMBERS).document(uid)
-            .update(
-                mapOf(
-                    FirestoreField.TODAY_STATUS to FirestoreField.STATUS_SLEEPING,
-                    FirestoreField.TODAY_WAKE_TIME to null
-                )
-            )
-            .addOnSuccessListener {
-                Log.d(TAG, "Reset own status to sleeping for new day")
+
+        // Read current status first — don't overwrite if user already woke today.
+        memberRef.get()
+            .addOnSuccessListener { doc ->
+                val currentStatus = doc.getString(FirestoreField.TODAY_STATUS) ?: FirestoreField.STATUS_SLEEPING
+                if (currentStatus != FirestoreField.STATUS_AWAKE) {
+                    memberRef.update(
+                        mapOf(
+                            FirestoreField.TODAY_STATUS to FirestoreField.STATUS_SLEEPING,
+                            FirestoreField.TODAY_WAKE_TIME to null
+                        )
+                    ).addOnSuccessListener {
+                        Log.d(TAG, "Reset own status to sleeping for new day")
+                    }.addOnFailureListener {
+                        Log.w(TAG, "Failed to reset own status", it)
+                    }
+                } else {
+                    Log.d(TAG, "User already awake today — skipping status reset")
+                }
             }
             .addOnFailureListener {
-                Log.w(TAG, "Failed to reset own status", it)
+                Log.w(TAG, "Failed to read member status for reset", it)
             }
     }
 
