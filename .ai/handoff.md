@@ -1,7 +1,7 @@
 # Handoff — Session End
 
-> **Last updated:** 2026-11-02
-> **Last action:** Ran `PROMPT_V1_RELEASE.md` loop. Fixed P0 alarm race conditions C1–C5 + B4 (ProGuard rules: added Haze, Material3 Expressive, androidx.graphics.shapes, Credential Manager, Google Identity, Coil 3 keeps). `bundleRelease` + `assembleRelease` + `lintDebug` + `test` all BUILD SUCCESSFUL. Next: B5 (Firebase key rotation + Blaze + Cloud Functions deploy — manual steps).
+> **Last updated:** 2026-11-03
+> **Last action:** Fixed P1 BootReceiver ghost alarms. It now verifies the authenticated user's current tribe membership from the server before scheduling; it skips cached scheduling when auth or membership cannot be verified. `assembleDebug`, `test`, and `lintDebug` are BUILD SUCCESSFUL. Next: P1 ProposalViewModel clock drift.
 
 ---
 
@@ -49,6 +49,10 @@ The entire 2026-08-27 production audit session's work (security rules, race-cond
     - **Build status:** `./gradlew assembleDebug` ✅, `./gradlew test` ✅, `./gradlew lintDebug` ✅ (all green).
 
 12. **`PROMPT_V1_RELEASE.md` Created** — master prompt placed in project root with complete v1.0 roadmap, current state, P0–P3 breakdown, execution loop, and session checklist. Designed to be run at start of every session to fast-forward development.
+
+13. **B4 ProGuard rules completed** — `app/proguard-rules.pro` now also keeps Haze (`dev.chrisbanes.haze.**`), Material3 Expressive (`androidx.compose.material3.**`), `androidx.graphics.shapes.**` (RoundedPolygon), Credential Manager + Google Identity libraries, and Coil 3. Verified by building a real signed `bundleRelease` (R8 + shrinkResources) and `assembleRelease` APK — both BUILD SUCCESSFUL. Outputs: `app/build/outputs/bundle/release/app-release.aab`, `app/build/outputs/apk/release/app-release.apk`.
+
+14. **BootReceiver ghost alarms fixed (P1)** — on reboot, the receiver no longer trusts a stale `user_alarms` document or `AlarmCache` alone. It reads the user's alarm document and their `tribes/{tribeId}/members/{uid}` document from `Source.SERVER`; only an existing member document permits rescheduling. If auth restoration, Firestore, or membership verification fails, no alarm is scheduled, preventing removed/left members from receiving ghost alarms after a reboot. `./gradlew assembleDebug test lintDebug` is green.
 
 ---
 

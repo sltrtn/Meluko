@@ -21,7 +21,7 @@
 
 ---
 
-## 📍 CURRENT STATE (as of 2026-11-02)
+## 📍 CURRENT STATE (as of 2026-11-03)
 
 | Area | Status | Blockers |
 |------|--------|----------|
@@ -31,11 +31,11 @@
 | Tribe mgmt | 100% | — |
 | Proposals/Vetoes | 100% | Cloud Functions written, **not deployed** (needs Blaze) |
 | Offline/Cache | 90% | Wake recording fails offline (F1) |
-| Release infra | 60% | **ProGuard missing, keys not rotated, Blaze not upgraded, Store assets missing** |
+| Release infra | 70% | ProGuard **done**, keys not rotated, Blaze not upgraded, Store assets missing |
 | Tests | 30% | Only 2 unit tests, no UI tests |
 
-**Last commit:** `5331916` — "Hold tribe alarm until all members wake or miss"
-**This session:** Fixed C1, C2, C3 (AlarmActivity), C4 (AlarmReceiver), C5 (MissedAlarmReceiver) — all builds green
+**Last commit:** `3f4f96e` — "v1.0: fix P0 alarm race conditions C1–C5; add PROMPT_V1_RELEASE.md"
+**This session (2026-11-03):** Fixed the BootReceiver ghost-alarm path: rescheduling now requires a current server-verified tribe membership; the auth/cache fallback no longer schedules an unverified alarm. `assembleDebug`, `test`, and `lintDebug` are green.
 
 ---
 
@@ -69,10 +69,10 @@
 |------|------|--------|--------|
 | Fix `resetOwnStatusForNewDay()` | `AlarmReceiver.kt` | Check current status before resetting to sleeping | ✅ Done (C4) |
 | Fix `MissedAlarmReceiver` race | `MissedAlarmReceiver.kt` | Use transaction for read+update | ✅ Done (C5) |
-| Fix `BootReceiver` ghost alarms | `BootReceiver.kt` | Verify tribe membership before scheduling | 🔄 Next |
-| Fix `AlarmScheduler` fallback | `AlarmScheduler.kt` | Show banner if exact alarm permission denied (already in HomeScreen) | ⏳ |
-| Fix `HomeViewModel` duplicate alarms | `HomeViewModel.kt` | Cancel old alarm before scheduling new | ⏳ |
+| Fix `BootReceiver` ghost alarms | `BootReceiver.kt` | Verify tribe membership before scheduling | ✅ Done |
 | Fix `ProposalViewModel` clock drift | `ProposalViewModel.kt` | Use `FieldValue.serverTimestamp()` for expiry check, not device `Date()` | ⏳ |
+| Fix `HomeViewModel` duplicate alarms | `HomeViewModel.kt` | Cancel old alarm before scheduling new | ⏳ |
+| Fix `AlarmScheduler` fallback | `AlarmScheduler.kt` | Show banner if exact alarm permission denied (already in HomeScreen) | ⏳ |
 
 ---
 
@@ -80,7 +80,7 @@
 
 | Task | File | Action |
 |------|------|--------|
-| ProGuard rules | `app/proguard-rules.pro` | Write comprehensive rules |
+| ProGuard rules | `app/proguard-rules.pro` | Write comprehensive rules (incl. Haze, Material3 Expressive, Credential Manager) | ✅ Done (B4) |
 | Privacy Policy / Terms | `docs/privacy.md`, `docs/terms.md` | Simple markdown, host on Git Pages or Firebase Hosting |
 | Play Store assets | `play-store/` | Screenshots (phone + tablet), feature graphic (1024x500), icon (512x512) |
 | Manual device test | — | Install release AAB on physical device, test full tribe flow |
@@ -147,7 +147,7 @@ git push origin master
 | P0 | `app/src/main/java/com/alarm/meluko/alarm/MissedAlarmReceiver.kt` | Fix C5 | ✅ Done |
 | P0 | `app/proguard-rules.pro` | **Create** — Release ProGuard rules | ✅ Done |
 | P0 | `functions/index.js` | Deploy to Firebase (Blaze) | ⏳ |
-| P1 | `app/src/main/java/com/alarm/meluko/alarm/BootReceiver.kt` | Fix ghost alarms | ⏳ |
+| P1 | `app/src/main/java/com/alarm/meluko/alarm/BootReceiver.kt` | Fix ghost alarms | ✅ Done |
 | P1 | `app/src/main/java/com/alarm/meluko/alarm/AlarmScheduler.kt` | Permission fallback UX | ⏳ |
 | P1 | `app/src/main/java/com/alarm/meluko/ui/HomeViewModel.kt` | Cancel old alarm | ⏳ |
 | P1 | `app/src/main/java/com/alarm/meluko/ui/ProposalViewModel.kt` | Server-time expiry | ⏳ |

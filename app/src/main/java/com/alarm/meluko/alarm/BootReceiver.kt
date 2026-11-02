@@ -11,6 +11,7 @@ import com.alarm.meluko.data.FirestoreCollection
 import com.alarm.meluko.data.FirestoreField
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Source
 
 class BootReceiver : BroadcastReceiver() {
 
@@ -49,46 +50,50 @@ class BootReceiver : BroadcastReceiver() {
 
         timeoutHandler.postDelayed({
             auth.removeAuthStateListener(listener)
-            // Timeout — no signed-in user restored. Fall back to cache.
-            val cachedTime = AlarmCache.getAlarmTime(context)
-            if (cachedTime != null) {
-                scheduleFromCachedTime(context, cachedTime)
-            }
-            Log.d(TAG, "Auth restore timed out, used cache: $cachedTime")
+            // Without an authenticated user we cannot verify tribe membership, so do not
+            // reschedule a potentially stale cached alarm.
+            Log.d(TAG, "Auth restore timed out; skipping alarm reschedule")
             pendingResult.finish()
         }, AUTH_TIMEOUT_MS)
     }
 
     private fun loadAlarmAndSchedule(context: Context, uid: String, pendingResult: android.content.BroadcastReceiver.PendingResult) {
-        FirebaseFirestore.getInstance()
+        val db = FirebaseFirestore.getInstance()
+        db
             .collection(FirestoreCollection.USER_ALARMS)
             .document(uid)
-            .get()
+            .get(Source.SERVER)
             .addOnSuccessListener { doc ->
                 val alarmTime = doc.getString(FirestoreField.FOLLOWED_ALARM_TIME)
-                if (alarmTime != null) {
-                    scheduleFromCachedTime(context, alarmTime)
-                    AlarmCache.saveAlarmTime(context, alarmTime)
-                    Log.d(TAG, "Alarm rescheduled from Firestore: $alarmTime")
-                } else {
-                    val cachedTime = AlarmCache.getAlarmTime(context)
-                    if (cachedTime != null) {
-                        scheduleFromCachedTime(context, cachedTime)
-                        Log.d(TAG, "Alarm rescheduled from cache: $cachedTime")
-                    } else {
-                        Log.d(TAG, "No alarm time found anywhere, skipping")
-                    }
+                val tribeId = doc.getString(FirestoreField.PRIMARY_TRIBE_ID)
+                if (alarmTime == null || tribeId == null) {
+                    Log.d(TAG, "No active tribe alarm found, skipping")
+                    pendingResult.finish()
+                    return@addOnSuccessListener
                 }
-                pendingResult.finish()
+
+                db.collection(FirestoreCollection.TRIBES)
+                    .document(tribeId)
+                    .collection(FirestoreCollection.MEMBERS)
+                    .document(uid)
+                    .get(Source.SERVER)
+                    .addOnSuccessListener { memberDoc ->
+                        if (memberDoc.exists()) {
+                            scheduleFromCachedTime(context, alarmTime)
+                            AlarmCache.saveAlarmTime(context, alarmTime)
+                            Log.d(TAG, "Alarm rescheduled for verified tribe member: $alarmTime")
+                        } else {
+                            Log.d(TAG, "User is no longer a tribe member; skipping alarm reschedule")
+                        }
+                        pendingResult.finish()
+                    }
+                    .addOnFailureListener {
+                        Log.w(TAG, "Couldn't verify tribe membership; skipping alarm reschedule", it)
+                        pendingResult.finish()
+                    }
             }
             .addOnFailureListener {
-                val cachedTime = AlarmCache.getAlarmTime(context)
-                if (cachedTime != null) {
-                    scheduleFromCachedTime(context, cachedTime)
-                    Log.d(TAG, "Firestore failed, used cache: $cachedTime")
-                } else {
-                    Log.w(TAG, "Firestore failed and no cache available", it)
-                }
+                Log.w(TAG, "Couldn't load current alarm membership; skipping alarm reschedule", it)
                 pendingResult.finish()
             }
     }
