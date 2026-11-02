@@ -35,7 +35,7 @@
 | Tests | 30% | Only 2 unit tests, no UI tests |
 
 **Last commit:** `3f4f96e` — "v1.0: fix P0 alarm race conditions C1–C5; add PROMPT_V1_RELEASE.md"
-**This session (2026-11-03):** Fixed BootReceiver ghost alarms (server-verified tribe membership), ProposalViewModel clock drift (server-time expiry), and HomeViewModel rescheduling (explicitly cancel old alarm first). `assembleDebug`, `test`, and `lintDebug` are green.
+**This session (2026-11-03):** Fixed BootReceiver ghost alarms (server-verified tribe membership), ProposalViewModel clock drift (server-time expiry), and HomeViewModel rescheduling (explicitly cancel old alarm first); verified the existing exact-alarm permission UX. `assembleDebug`, `test`, and `lintDebug` are green.
 
 ---
 
@@ -72,7 +72,7 @@
 | Fix `BootReceiver` ghost alarms | `BootReceiver.kt` | Verify tribe membership before scheduling | ✅ Done |
 | Fix `ProposalViewModel` clock drift | `ProposalViewModel.kt` | Use server time for expiry check, not device `Date()` | ✅ Done |
 | Fix `HomeViewModel` duplicate alarms | `HomeViewModel.kt` | Cancel old alarm before scheduling new | ✅ Done |
-| Fix `AlarmScheduler` fallback | `AlarmScheduler.kt` | Show banner if exact alarm permission denied (already in HomeScreen) | ⏳ |
+| Fix `AlarmScheduler` fallback | `AlarmScheduler.kt` | Show banner if exact alarm permission denied (already in HomeScreen) | ✅ Verified |
 
 ---
 
@@ -148,7 +148,7 @@ git push origin master
 | P0 | `app/proguard-rules.pro` | **Create** — Release ProGuard rules | ✅ Done |
 | P0 | `functions/index.js` | Deploy to Firebase (Blaze) | ⏳ |
 | P1 | `app/src/main/java/com/alarm/meluko/alarm/BootReceiver.kt` | Fix ghost alarms | ✅ Done |
-| P1 | `app/src/main/java/com/alarm/meluko/alarm/AlarmScheduler.kt` | Permission fallback UX | ⏳ |
+| P1 | `app/src/main/java/com/alarm/meluko/alarm/AlarmScheduler.kt` | Permission fallback UX | ✅ Verified |
 | P1 | `app/src/main/java/com/alarm/meluko/ui/HomeViewModel.kt` | Cancel old alarm | ⏳ |
 | P1 | `app/src/main/java/com/alarm/meluko/ui/ProposalViewModel.kt` | Server-time expiry | ⏳ |
 | P2 | `docs/privacy.md`, `docs/terms.md` | **Create** — Store policies | ⏳ |

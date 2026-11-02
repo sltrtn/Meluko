@@ -1,7 +1,7 @@
 # Handoff — Session End
 
 > **Last updated:** 2026-11-03
-> **Last action:** Fixed P1 HomeViewModel duplicate alarm scheduling. Every changed alarm time now explicitly cancels the previous pending alarm before scheduling its replacement. `assembleDebug`, `test`, and `lintDebug` are BUILD SUCCESSFUL. Next: P1 exact-alarm permission UX.
+> **Last action:** Verified P1 exact-alarm permission UX. HomeScreen warns while exact alarms are unavailable, continuously refreshes the grant state, and directs the user to the system grant screen; AlarmScheduler safely falls back to an inexact alarm. `assembleDebug`, `test`, and `lintDebug` are BUILD SUCCESSFUL. Next: P2 privacy policy and terms.
 
 ---
 
@@ -57,6 +57,8 @@ The entire 2026-08-27 production audit session's work (security rules, race-cond
 15. **ProposalViewModel clock drift fixed (P1)** — removed the device-clock `Date().before(expires)` guard from proposal acceptance. The existing Firestore rules already compare `request.time` with the server-stamped `createdAt + 2h`; the ViewModel's 20-second retry loop now lets that authoritative server-time check accept a proposal, so a fast/slow device cannot shorten or extend its veto window. `./gradlew assembleDebug test lintDebug` is green.
 
 16. **HomeViewModel duplicate scheduling fixed (P1)** — `scheduleAlarm()` now calls `AlarmScheduler.cancel()` before scheduling the changed time. This makes replacement explicit rather than relying on PendingIntent replacement semantics. `./gradlew assembleDebug test lintDebug` is green.
+
+17. **Exact-alarm permission UX verified (P1)** — no code change was needed. `HomeNotices` checks `canScheduleExactAlarms()` continuously, warns that the alarm could ring late when unavailable, and routes its Allow action to `ACTION_REQUEST_SCHEDULE_EXACT_ALARM`; `AlarmScheduler` uses the inexact fallback safely until access is restored.
 
 ---
 
