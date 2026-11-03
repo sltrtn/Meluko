@@ -35,7 +35,7 @@
 | Tests | 30% | Only 2 unit tests, no UI tests |
 
 **Last commit:** `3f4f96e` — "v1.0: fix P0 alarm race conditions C1–C5; add PROMPT_V1_RELEASE.md"
-**This session (2026-11-03):** Fixed BootReceiver ghost alarms (server-verified tribe membership), ProposalViewModel clock drift (server-time expiry), and HomeViewModel rescheduling (explicitly cancel old alarm first); verified the existing exact-alarm permission UX. `assembleDebug`, `test`, and `lintDebug` are green.
+**This session (2026-11-03):** Completed all P1 reliability items and added P2 privacy policy and terms documents. `assembleDebug`, `test`, and `lintDebug` are green.
 
 ---
 
@@ -81,7 +81,7 @@
 | Task | File | Action |
 |------|------|--------|
 | ProGuard rules | `app/proguard-rules.pro` | Write comprehensive rules (incl. Haze, Material3 Expressive, Credential Manager) | ✅ Done (B4) |
-| Privacy Policy / Terms | `docs/privacy.md`, `docs/terms.md` | Simple markdown, host on Git Pages or Firebase Hosting |
+| Privacy Policy / Terms | `docs/privacy.md`, `docs/terms.md` | ✅ Done — hosting still required for Play URL |
 | Play Store assets | `play-store/` | Screenshots (phone + tablet), feature graphic (1024x500), icon (512x512) |
 | Manual device test | — | Install release AAB on physical device, test full tribe flow |
 | Lint clean | — | `./gradlew lintDebug` → 0 errors |

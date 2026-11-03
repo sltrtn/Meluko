@@ -1,7 +1,7 @@
 # Handoff — Session End
 
 > **Last updated:** 2026-11-03
-> **Last action:** Verified P1 exact-alarm permission UX. HomeScreen warns while exact alarms are unavailable, continuously refreshes the grant state, and directs the user to the system grant screen; AlarmScheduler safely falls back to an inexact alarm. `assembleDebug`, `test`, and `lintDebug` are BUILD SUCCESSFUL. Next: P2 privacy policy and terms.
+> **Last action:** Completed P2 privacy policy and terms at `docs/privacy.md` and `docs/terms.md`, using the app's actual Firebase and social-data flows. `assembleDebug`, `test`, and `lintDebug` are BUILD SUCCESSFUL. Next: P2 Play Store assets, then a physical-device tribe-flow test; publish the policy at a stable public URL before Play submission.
 
 ---
 
@@ -59,6 +59,8 @@ The entire 2026-08-27 production audit session's work (security rules, race-cond
 16. **HomeViewModel duplicate scheduling fixed (P1)** — `scheduleAlarm()` now calls `AlarmScheduler.cancel()` before scheduling the changed time. This makes replacement explicit rather than relying on PendingIntent replacement semantics. `./gradlew assembleDebug test lintDebug` is green.
 
 17. **Exact-alarm permission UX verified (P1)** — no code change was needed. `HomeNotices` checks `canScheduleExactAlarms()` continuously, warns that the alarm could ring late when unavailable, and routes its Allow action to `ACTION_REQUEST_SCHEDULE_EXACT_ALARM`; `AlarmScheduler` uses the inexact fallback safely until access is restored.
+
+18. **Privacy policy and terms added (P2)** — created `docs/privacy.md` and `docs/terms.md`. They cover Google Sign-In, Firebase Auth/Firestore/Storage/Crashlytics, local alarm preferences, tribe visibility, deletion, acceptable use, alarm-reliability limitations, and support. They must be hosted at stable public URLs before Play submission.
 
 ---
 
